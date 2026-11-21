@@ -26,13 +26,14 @@ export async function tedarikciHakedisleriGetir(subeId?: string): Promise<Tedari
 
 export function tedarikciHakedisleriniCanliDinle(
   subeId: string,
-  onGuncelle: (hakedisler: TedarikciHakedis[]) => void
+  onGuncelle: (hakedisler: TedarikciHakedis[]) => void,
+  onHata?: (hata: Error) => void
 ): () => void {
   if (!canliFirebaseAktifMi()) return () => {};
   return koleksiyonuCanliDinle<TedarikciHakedis>('tedarikci_hakedisleri', (liste) => {
     const filtrelenmis = (liste || []).filter((h) => h.sube_id === subeId);
     onGuncelle(filtrelenmis);
-  });
+  }, onHata);
 }
 
 export function tumTedarikciHakedisleriniCanliDinle(

@@ -47,7 +47,8 @@ export async function koleksiyonGetir<T>(koleksiyonAdi: string): Promise<T[]> {
 
 export function koleksiyonuCanliDinle<T>(
   koleksiyonAdi: string,
-  geriCagirim: (veriler: T[]) => void
+  geriCagirim: (veriler: T[]) => void,
+  hataCagirim?: (hata: Error) => void
 ): () => void {
   try {
     const kolRef = collection(firebaseVeritabani, koleksiyonAdi);
@@ -59,7 +60,15 @@ export function koleksiyonuCanliDinle<T>(
       },
       (hata) => {
         if (yetkiHatasiMi(hata)) {
-          firestoreHatasiniYonet(hata, IslemTipi.GET, koleksiyonAdi);
+          try {
+            firestoreHatasiniYonet(hata, IslemTipi.GET, koleksiyonAdi);
+          } catch (yapilandirilmisHata) {
+            if (hataCagirim && yapilandirilmisHata instanceof Error) {
+              hataCagirim(yapilandirilmisHata);
+              return;
+            }
+            throw yapilandirilmisHata;
+          }
         }
         console.warn(`Firebase ${koleksiyonAdi} canlı dinleme hatası:`, hata);
       }

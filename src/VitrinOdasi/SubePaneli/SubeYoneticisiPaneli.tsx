@@ -15,27 +15,38 @@ import { subeSiparisZiliCal } from '@/src/MalzemeCekmeceleri/Sube/subeZilServisi
 
 export const SubeYoneticisiPaneli: React.FC = () => {
   const { aktifKullanici, cikisYap } = kullaniciHafizasiKullan();
-  const { subeler, subeGuncelle } = gelAlSubeleriGetir();
-  const { urunler } = useSubeUrunleri();
+  const rolYetkiliMi = Boolean(
+    aktifKullanici && (aktifKullanici.rol === 'sube_admin' || aktifKullanici.rol === 'yonetici')
+  );
+
+  const { subeler, subeGuncelle } = gelAlSubeleriGetir(rolYetkiliMi);
+  const { urunler } = useSubeUrunleri(undefined, rolYetkiliMi);
   const [siparisler, setSiparisler] = useState<SubeSiparisi[]>([]);
   const [aktifSekme, setAktifSekme] = useState<'stoklar' | 'siparisler' | 'tedarik_kazanc'>('tedarik_kazanc');
+  const [seciliSubeId, setSeciliSubeId] = useState<string>('');
   const oncekiSayiRef = React.useRef<number | null>(null);
 
-  const atananSubeId = aktifKullanici?.sube_id || 'sube-1';
-  const aktifSube = subeler.find((s) => s.id === atananSubeId || s.kimlik === atananSubeId) || subeler[0];
+  const varsayilanSubeId = aktifKullanici?.sube_id || 'sube-1';
+  const hedefSubeId = seciliSubeId || varsayilanSubeId;
+  const aktifSube = subeler.find((s) => s.id === hedefSubeId || s.kimlik === hedefSubeId) || subeler[0];
 
   useEffect(() => {
-    if (!aktifKullanici || (aktifKullanici.rol !== 'sube_admin' && aktifKullanici.rol !== 'yonetici')) return;
-    if (!aktifSube?.id) return;
-    const durdur = subeSiparisleriniCanliDinle(aktifSube.id, (liste) => {
-      if (oncekiSayiRef.current !== null && liste.length > oncekiSayiRef.current) {
-        subeSiparisZiliCal();
+    if (!rolYetkiliMi || !aktifSube?.id) return;
+    const durdur = subeSiparisleriniCanliDinle(
+      aktifSube.id,
+      (liste) => {
+        if (oncekiSayiRef.current !== null && liste.length > oncekiSayiRef.current) {
+          subeSiparisZiliCal();
+        }
+        oncekiSayiRef.current = liste.length;
+        setSiparisler(liste);
+      },
+      (hata) => {
+        console.warn('Şube siparişleri canlı dinleme yetki uyarısı:', hata.message);
       }
-      oncekiSayiRef.current = liste.length;
-      setSiparisler(liste);
-    });
+    );
     return () => durdur();
-  }, [aktifKullanici, aktifSube?.id]);
+  }, [rolYetkiliMi, aktifSube?.id]);
 
   const canliYayinToggle = async () => {
     if (!aktifSube || !aktifSube.id) return;
@@ -43,7 +54,7 @@ export const SubeYoneticisiPaneli: React.FC = () => {
     await subeGuncelle(aktifSube.id, { canli_yayin_aktif_mi: yeniDurum });
   };
 
-  if (!aktifKullanici || (aktifKullanici.rol !== 'sube_admin' && aktifKullanici.rol !== 'yonetici')) {
+  if (!rolYetkiliMi) {
     return <SubeGirisEkrani />;
   }
 
@@ -59,12 +70,26 @@ export const SubeYoneticisiPaneli: React.FC = () => {
               {aktifSube?.ad || 'Şube Yönetim Paneli'}
             </h1>
             <p className="text-[10px] sm:text-xs text-[#A872B5] truncate">
-              Müdür: <strong className="text-white">{aktifKullanici.ad_soyad}</strong>
+              Müdür: <strong className="text-white">{aktifKullanici?.ad_soyad}</strong>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {aktifKullanici?.rol === 'yonetici' && subeler.length > 1 && (
+            <select
+              value={aktifSube?.id || ''}
+              onChange={(e) => setSeciliSubeId(e.target.value)}
+              aria-label="Şube Seç"
+              className="hidden md:block bg-[#180A1F] border border-[#521E5C] rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#DDAF53] cursor-pointer"
+            >
+              {subeler.map((s) => (
+                <option key={s.id || s.ad} value={s.id || ''}>
+                  {s.ad}
+                </option>
+              ))}
+            </select>
+          )}
           <SubeZilButonu />
           <button
             type="button"

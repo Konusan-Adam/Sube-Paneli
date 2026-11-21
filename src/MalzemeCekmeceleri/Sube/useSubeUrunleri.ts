@@ -84,11 +84,13 @@ export const VARSAYILAN_SUBE_URUNLERI: SubeUrunu[] = [
   },
 ];
 
-export function useSubeUrunleri(subeId?: string | null) {
+export function useSubeUrunleri(subeId?: string | null, aktifMi: boolean = true) {
   const [urunler, setUrunler] = useState<SubeUrunu[]>(VARSAYILAN_SUBE_URUNLERI);
   const [yukleniyor, setYukleniyor] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!aktifMi) return;
+    let iptal = false;
     let dinlemeDurdur: (() => void) | undefined;
 
     const veriGetir = async () => {
@@ -96,6 +98,7 @@ export function useSubeUrunleri(subeId?: string | null) {
       setYukleniyor(true);
       try {
         const fbUrunler = await koleksiyonGetir<SubeUrunu>('sube_stoklari');
+        if (iptal) return;
         if (fbUrunler && fbUrunler.length > 0) {
           setUrunler(fbUrunler);
         } else {
@@ -104,23 +107,30 @@ export function useSubeUrunleri(subeId?: string | null) {
             await belgeKaydet('sube_stoklari', u.id, u);
           }
         }
-        dinlemeDurdur = koleksiyonuCanliDinle<SubeUrunu>('sube_stoklari', (guncel) => {
-          if (guncel && guncel.length > 0) {
-            setUrunler(guncel);
+        dinlemeDurdur = koleksiyonuCanliDinle<SubeUrunu>(
+          'sube_stoklari',
+          (guncel) => {
+            if (!iptal && guncel && guncel.length > 0) {
+              setUrunler(guncel);
+            }
+          },
+          (hata) => {
+            console.warn('Şube stokları canlı dinleme yetki uyarısı:', hata.message);
           }
-        });
+        );
       } catch (err) {
         console.warn('Şube stokları çekilirken hata oluştu:', err);
       } finally {
-        setYukleniyor(false);
+        if (!iptal) setYukleniyor(false);
       }
     };
 
     veriGetir();
     return () => {
+      iptal = true;
       if (dinlemeDurdur) dinlemeDurdur();
     };
-  }, []);
+  }, [aktifMi]);
 
   const seciliSubeUrunleri = subeId
     ? urunler.filter((u) => u.sube_id === subeId)

@@ -10,11 +10,22 @@ interface Props {
 export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
   const [siparisler, setSiparisler] = useState<SubeSiparisi[]>([]);
   const [seciliDurum, setSeciliDurum] = useState<string>('tumu');
+  const [yetkiHatasi, setYetkiHatasi] = useState<string>('');
 
   useEffect(() => {
-    const durdur = subeSiparisleriniCanliDinle(subeId, (liste) => {
-      setSiparisler(liste);
-    });
+    setYetkiHatasi('');
+    const durdur = subeSiparisleriniCanliDinle(
+      subeId,
+      (liste) => {
+        setYetkiHatasi('');
+        setSiparisler(liste);
+      },
+      () => {
+        setYetkiHatasi(
+          'Şube siparişleri için Firestore okuma yetkisi bulunamadı. Veritabanı kuralları (sube_siparisleri) şu an oturumsuz erişimi engelliyor.'
+        );
+      }
+    );
     return () => durdur();
   }, [subeId]);
 
@@ -31,6 +42,11 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
 
   return (
     <div className="bg-[#220E29] border border-[#521E5C] rounded-2xl p-3.5 sm:p-5 text-white shadow-xl space-y-4">
+      {yetkiHatasi && (
+        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs">
+          {yetkiHatasi}
+        </div>
+      )}
       {bekleyenSayisi > 0 && (
         <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl flex items-center justify-between text-amber-200 text-xs animate-pulse">
           <div className="flex items-center gap-2">

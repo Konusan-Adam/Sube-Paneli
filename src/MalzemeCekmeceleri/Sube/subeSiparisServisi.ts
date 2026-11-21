@@ -18,13 +18,14 @@ export async function subeSiparisleriGetir(subeId?: string): Promise<SubeSiparis
 
 export function subeSiparisleriniCanliDinle(
   subeId: string,
-  onGuncelle: (siparisler: SubeSiparisi[]) => void
+  onGuncelle: (siparisler: SubeSiparisi[]) => void,
+  onHata?: (hata: Error) => void
 ): () => void {
   if (!canliFirebaseAktifMi()) return () => {};
   return koleksiyonuCanliDinle<SubeSiparisi>('sube_siparisleri', (liste) => {
     const filtrelenmis = (liste || []).filter((s) => s.sube_id === subeId);
     onGuncelle(filtrelenmis);
-  });
+  }, onHata);
 }
 
 export async function subeSiparisiDurumGuncelle(

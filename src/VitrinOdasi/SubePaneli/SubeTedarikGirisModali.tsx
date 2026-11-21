@@ -59,21 +59,30 @@ export const SubeTedarikGirisModali: React.FC<Props> = ({
       tarih: new Date().toISOString(),
     };
 
-    // 1. Tedarikçi Hakedişini Firestore'a yaz ve Patron'a zil gönder
-    await tedarikciHakedisKaydet(hakedisKaydi);
+    try {
+      // 1. Tedarikçi Hakedişini Firestore'a yaz ve Patron'a zil gönder
+      const hakedisKaydedildi = await tedarikciHakedisKaydet(hakedisKaydi);
+      if (!hakedisKaydedildi) {
+        setHata('Tedarikçi hak edişi kaydedilemedi. Veritabanı yetkilerini kontrol edin.');
+        return;
+      }
 
-    // 2. Ürünün stok adedini ve tedarikçi alanlarını güncelle
-    const yeniStok = (seciliUrun.stok_adedi || 0) + teslimAdedi;
-    await belgeKaydet('sube_stoklari', seciliUrun.id, {
-      stok_adedi: yeniStok,
-      tedarikci_adi: tedarikciAdi.trim(),
-      alis_fiyati: birimAlisFiyati,
-      gunluk_gelen_adet: (seciliUrun.gunluk_gelen_adet || 0) + teslimAdedi,
-    });
+      // 2. Ürünün stok adedini ve tedarikçi alanlarını güncelle
+      const yeniStok = (seciliUrun.stok_adedi || 0) + teslimAdedi;
+      await belgeKaydet('sube_stoklari', seciliUrun.id, {
+        stok_adedi: yeniStok,
+        tedarikci_adi: tedarikciAdi.trim(),
+        alis_fiyati: birimAlisFiyati,
+        gunluk_gelen_adet: (seciliUrun.gunluk_gelen_adet || 0) + teslimAdedi,
+      });
 
-    setYukleniyor(false);
-    onBasarili();
-    onKapat();
+      onBasarili();
+      onKapat();
+    } catch {
+      setHata('Kayıt sırasında veritabanı yetki veya bağlantı hatası oluştu.');
+    } finally {
+      setYukleniyor(false);
+    }
   };
 
   return (

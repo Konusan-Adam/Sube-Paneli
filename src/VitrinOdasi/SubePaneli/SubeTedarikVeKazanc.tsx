@@ -25,11 +25,22 @@ export const SubeTedarikVeKazanc: React.FC<Props> = ({
 }) => {
   const [hakedisler, setHakedisler] = useState<TedarikciHakedis[]>([]);
   const [modalAcik, setModalAcik] = useState<boolean>(false);
+  const [yetkiHatasi, setYetkiHatasi] = useState<string>('');
 
   useEffect(() => {
-    const durdur = tedarikciHakedisleriniCanliDinle(subeId, (liste) => {
-      setHakedisler(liste);
-    });
+    setYetkiHatasi('');
+    const durdur = tedarikciHakedisleriniCanliDinle(
+      subeId,
+      (liste) => {
+        setYetkiHatasi('');
+        setHakedisler(liste);
+      },
+      () => {
+        setYetkiHatasi(
+          'Tedarikçi hak edişleri için Firestore okuma yetkisi bulunamadı. Veritabanı kuralları (tedarikci_hakedisleri) şu an oturumsuz erişimi engelliyor.'
+        );
+      }
+    );
     return () => durdur();
   }, [subeId]);
 
@@ -37,6 +48,11 @@ export const SubeTedarikVeKazanc: React.FC<Props> = ({
 
   return (
     <div className="space-y-4">
+      {yetkiHatasi && (
+        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs">
+          {yetkiHatasi}
+        </div>
+      )}
       {/* 1. Kazanç ve Ciro Özet Kartları */}
       <SubeKazancOzeti
         toplamCiro={rapor.toplamCiro}

@@ -41,7 +41,7 @@ export const BASLANGIC_GEL_AL_SUBELERI: GelAlSubesi[] = [
   }
 ];
 
-export function gelAlSubeleriGetir(): {
+export function gelAlSubeleriGetir(aktifMi: boolean = true): {
   subeler: GelAlSubesi[];
   yukleniyor: boolean;
   subeEkle: (yeniSube: Omit<GelAlSubesi, 'id' | 'kimlik'>) => Promise<boolean>;
@@ -52,6 +52,11 @@ export function gelAlSubeleriGetir(): {
   const [yukleniyor, setYukleniyor] = useState<boolean>(true);
 
   useEffect(() => {
+    if (!aktifMi) {
+      setYukleniyor(false);
+      return;
+    }
+
     let iptal = false;
     let dinlemeDurdur = () => {};
 
@@ -73,11 +78,17 @@ export function gelAlSubeleriGetir(): {
           }
 
           // Canlı dinleme başlat
-          dinlemeDurdur = koleksiyonuCanliDinle<GelAlSubesi>('gel_al_subeleri', (guncelSubeler) => {
-            if (guncelSubeler && guncelSubeler.length > 0) {
-              setSubeler(guncelSubeler);
+          dinlemeDurdur = koleksiyonuCanliDinle<GelAlSubesi>(
+            'gel_al_subeleri',
+            (guncelSubeler) => {
+              if (guncelSubeler && guncelSubeler.length > 0) {
+                setSubeler(guncelSubeler);
+              }
+            },
+            (hata) => {
+              console.warn('Gel-Al şubeleri canlı dinleme yetki uyarısı:', hata.message);
             }
-          });
+          );
         } catch (hata) {
           console.warn("Gel-Al şubeleri çekilirken hata:", hata);
           setSubeler(BASLANGIC_GEL_AL_SUBELERI);
@@ -95,7 +106,7 @@ export function gelAlSubeleriGetir(): {
       iptal = true;
       dinlemeDurdur();
     };
-  }, []);
+  }, [aktifMi]);
 
   const subeEkle = async (yeniSube: Omit<GelAlSubesi, 'id' | 'kimlik'>): Promise<boolean> => {
     const id = `sube-${Date.now()}`;

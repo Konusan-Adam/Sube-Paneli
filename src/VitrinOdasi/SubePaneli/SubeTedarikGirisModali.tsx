@@ -30,13 +30,17 @@ export const SubeTedarikGirisModali: React.FC<Props> = ({
 
   if (!acikMi) return null;
 
-  const subeUrunleri = urunler.filter((u) => !subeId || u.sube_id === subeId);
-  const seciliUrun = subeUrunleri.find((u) => u.id === seciliUrunId) || subeUrunleri[0] || urunler[0];
+  const subeUrunleri = urunler.filter((u) => u.sube_id === subeId);
+  const seciliUrun = subeUrunleri.find((u) => u.id === seciliUrunId) || subeUrunleri[0];
 
   const kaydet = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tedarikciAdi.trim()) {
       setHata('Lütfen tedarikçi / ev mutfağı adını yazınız.');
+      return;
+    }
+    if (!seciliUrun || seciliUrun.sube_id !== subeId) {
+      setHata('Bu şubeye tanımlı ürün bulunamadı.');
       return;
     }
     setYukleniyor(true);
@@ -121,11 +125,11 @@ export const SubeTedarikGirisModali: React.FC<Props> = ({
           <div>
             <label className="block text-[#CFA353] font-semibold mb-1">Teslim Alınan Ürün</label>
             <select
-              value={seciliUrunId}
+              value={seciliUrun?.id || ''}
               onChange={(e) => setSeciliUrunId(e.target.value)}
               className="w-full bg-[#2A102E] border border-[#521E5C] rounded-xl px-3 py-2 text-white focus:outline-none focus:border-[#DDAF53]"
             >
-              {urunler.map((u) => (
+              {subeUrunleri.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.ad} (Satış: {u.fiyat} ₺)
                 </option>

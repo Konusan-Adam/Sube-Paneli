@@ -1,27 +1,34 @@
 import { TedarikciHakedis, SubeUrunu, SubeSiparisi } from '@/src/veritabani/SubeTipleri';
 import { canliFirebaseAktifMi } from '@/src/veritabani/FirebaseIstemcisi';
-import { belgeKaydet, koleksiyonGetir, koleksiyonuCanliDinle } from '@/src/veritabani/FirebaseKoleksiyonServisi';
+import {
+  belgeKaydet,
+  subeKoleksiyonuGetir,
+  subeKoleksiyonunuCanliDinle,
+} from '@/src/veritabani/FirebaseKoleksiyonServisi';
 import { patronBildirimiEkle } from '@/src/MalzemeCekmeceleri/PatronBildirimServisi';
 
 export async function tedarikciHakedisKaydet(hakedis: TedarikciHakedis): Promise<boolean> {
+  if (!hakedis.sube_id) return false;
   if (canliFirebaseAktifMi()) {
     const basarili = await belgeKaydet('tedarikci_hakedisleri', hakedis.id, hakedis);
     if (basarili) {
       patronBildirimiEkle(
         'hakedis_talebi',
         'Yeni Şube Tedarikçi Hak Edişi 💰',
-        `${hakedis.tedarikci_adi} tedarikçisinin ${hakedis.toplam_hakedis} ₺ tutarındaki hak edişi patron onayına sunuldu.`
+        `${hakedis.tedarikci_adi} tedarikçisinin ${hakedis.toplam_hakedis} ₺ tutarındaki hak edişi patron onayına sunuldu.`,
+        hakedis.id,
+        { subeId: hakedis.sube_id }
       );
     }
     return basarili;
   }
-  return true;
+  return false;
 }
 
-export async function tedarikciHakedisleriGetir(subeId?: string): Promise<TedarikciHakedis[]> {
-  if (!canliFirebaseAktifMi()) return [];
-  const tum = await koleksiyonGetir<TedarikciHakedis>('tedarikci_hakedisleri');
-  return subeId ? tum.filter((h) => h.sube_id === subeId) : tum;
+export async function tedarikciHakedisleriGetir(subeId: string): Promise<TedarikciHakedis[]> {
+  if (!canliFirebaseAktifMi() || !subeId) return [];
+  const liste = await subeKoleksiyonuGetir<TedarikciHakedis>('tedarikci_hakedisleri', subeId);
+  return (liste || []).filter((h) => h.sube_id === subeId);
 }
 
 export function tedarikciHakedisleriniCanliDinle(
@@ -29,18 +36,16 @@ export function tedarikciHakedisleriniCanliDinle(
   onGuncelle: (hakedisler: TedarikciHakedis[]) => void,
   onHata?: (hata: Error) => void
 ): () => void {
-  if (!canliFirebaseAktifMi()) return () => {};
-  return koleksiyonuCanliDinle<TedarikciHakedis>('tedarikci_hakedisleri', (liste) => {
-    const filtrelenmis = (liste || []).filter((h) => h.sube_id === subeId);
-    onGuncelle(filtrelenmis);
-  }, onHata);
-}
-
-export function tumTedarikciHakedisleriniCanliDinle(
-  onGuncelle: (hakedisler: TedarikciHakedis[]) => void
-): () => void {
-  if (!canliFirebaseAktifMi()) return () => {};
-  return koleksiyonuCanliDinle<TedarikciHakedis>('tedarikci_hakedisleri', onGuncelle);
+  if (!canliFirebaseAktifMi() || !subeId) return () => {};
+  return subeKoleksiyonunuCanliDinle<TedarikciHakedis>(
+    'tedarikci_hakedisleri',
+    subeId,
+    (liste) => {
+      const filtrelenmis = (liste || []).filter((h) => h.sube_id === subeId);
+      onGuncelle(filtrelenmis);
+    },
+    onHata
+  );
 }
 
 export async function tedarikciHakedisDurumuGuncelle(
@@ -50,11 +55,11 @@ export async function tedarikciHakedisDurumuGuncelle(
   if (canliFirebaseAktifMi()) {
     return belgeKaydet('tedarikci_hakedisleri', hakedisId, { durum: yeniDurum });
   }
-  return true;
+  return false;
 }
 
 export function subeGunlukRaporHesapla(
-  urunler: SubeUrunu[],
+  _urunler: SubeUrunu[],
   hakedisler: TedarikciHakedis[],
   siparisler: SubeSiparisi[]
 ) {
@@ -68,6 +73,6 @@ export function subeGunlukRaporHesapla(
     toplamTedarikciMaliyeti,
     netSubeKari,
     toplamTeslimat: tamamlananSiparisler.length,
-    bekleyenHakedis: hakedisler.filter((h) => h.durum === 'beklemede').length
+    bekleyenHakedis: hakedisler.filter((h) => h.durum === 'beklemede').length,
   };
 }

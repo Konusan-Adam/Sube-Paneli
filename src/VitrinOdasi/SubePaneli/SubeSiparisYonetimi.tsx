@@ -30,6 +30,8 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
   }, [subeId]);
 
   const durumGuncelle = async (siparisId: string, yeniDurum: SubeSiparisi['durum']) => {
+    const hedefSiparis = siparisler.find((s) => s.id === siparisId && s.sube_id === subeId);
+    if (!hedefSiparis) return;
     await subeSiparisiDurumGuncelle(siparisId, yeniDurum);
   };
 

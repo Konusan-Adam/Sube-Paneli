@@ -31,7 +31,7 @@ export const SubeGirisEkrani: React.FC = () => {
             Şube Yönetim Paneli
           </p>
           <p className="text-xs text-stone-300">
-            Yetkili Şube Müdürü veya Yönetici hesabınızla oturum açın.
+            Yetkili Şube Müdürü hesabınızla oturum açın.
           </p>
         </div>
 

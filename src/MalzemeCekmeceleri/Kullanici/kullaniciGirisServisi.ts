@@ -1,84 +1,177 @@
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import { Kullanici } from '@/src/veritabani/VeriTipleri';
-import { canliFirebaseAktifMi } from '@/src/veritabani/FirebaseIstemcisi';
-import { belgeKaydet, koleksiyonGetir } from '@/src/veritabani/FirebaseKoleksiyonServisi';
-import { testKullaniciDogrula } from '@/src/veritabani/CanliVeriYardimcisi';
-import { telefonGecerliMi } from '@/src/MalzemeCekmeceleri/Dogrulama/telefonDogrulayici';
+import { canliFirebaseAktifMi, firebaseVeritabani } from '@/src/veritabani/FirebaseIstemcisi';
+import { belgeGetir, belgeKaydet } from '@/src/veritabani/FirebaseKoleksiyonServisi';
+import { telefonGecerliMi, telefonuStandartlastir } from '@/src/MalzemeCekmeceleri/Dogrulama/telefonDogrulayici';
 import { telefonStandartCekirdek } from './telefonYardimcisi';
 
 type GuvenlikliKullanici = Kullanici & {
-  sifre?: string;
+  sifre?: string | number;
+  parola?: string | number;
   guvenlik_sorusu?: string;
   guvenlik_cevabi?: string;
 };
 
-export async function veritabanindanKullaniciGirisYaptir(
+export const YETKILI_SUBE_ROLLERI = ['sube_muduru', 'sube_admin'] as const;
+export const YETKISIZ_ROLLER = new Set([
+  'super_admin',
+  'yonetici',
+  'musteri',
+  'mutfak',
+  'ev_mutfagi',
+  'ticari_restoran',
+  'kurye',
+]);
+
+export const YETKISIZ_GIRIS_MESAJI = 'Yetkisiz giriş denemesi.';
+
+export function subeMuduruRoluGecerliMi(rol: string | undefined | null): boolean {
+  if (!rol) return false;
+  const temizRol = rol.trim();
+  if (YETKISIZ_ROLLER.has(temizRol)) return false;
+  return temizRol === 'sube_muduru' || temizRol === 'sube_admin';
+}
+
+export function subeKullaniciBelgeIdOlustur(
   telefon: string,
-  sifre: string
-): Promise<Kullanici | null> {
-  const dogrulama = telefonGecerliMi(telefon);
-  if (!dogrulama.gecerli) return null;
+  rol: 'sube_muduru' | 'sube_admin' = 'sube_muduru'
+): string {
+  const standart05 = telefonuStandartlastir(telefon);
+  return `${standart05}_${rol}`;
+}
 
-  const standartTelefon = telefonStandartCekirdek(telefon);
-  const girilenSifre = sifre.trim();
-  if (!girilenSifre) return null;
+async function sadeceSubeMuduruBelgesiGetir(
+  telefon: string
+): Promise<{ belgeId: string; kullanici: GuvenlikliKullanici } | null> {
+  const standart05 = telefonuStandartlastir(telefon);
+  const cekirdek10 = telefonStandartCekirdek(telefon);
+  if (!standart05 || standart05.length !== 11 || !cekirdek10) return null;
 
-  if (
-    (standartTelefon === '5325420303' || standartTelefon === '5301234567' || standartTelefon === '5051234567') &&
-    (girilenSifre === '1979' || girilenSifre === '1234')
-  ) {
-    return {
-      kimlik: 'yonetici_patron_01',
-      ad_soyad: 'Aslan Usta (Patron & Süper Admin)',
-      telefon: '05325420303',
-      eposta: 'patron@afyonevlezzetleri.com',
-      rol: 'yonetici',
-      isletme_adi: 'Afyon Ev Lezzetleri Genel Merkez',
-      ilce: 'Merkez',
-      onayli_mi: true,
-      olusturma_tarihi: new Date().toISOString(),
-    };
-  }
+  // 1. Önce bileşik doküman anahtarlarını doğrudan kontrol et: 05XXXXXXXXX_sube_muduru -> _sube_admin
+  const adayBelgeIdleri = [
+    `${standart05}_sube_muduru`,
+    `${standart05}_sube_admin`,
+    `${cekirdek10}_sube_muduru`,
+    `${cekirdek10}_sube_admin`,
+  ];
 
-  if (canliFirebaseAktifMi()) {
-    try {
-      const tumKullanicilar = await koleksiyonGetir<GuvenlikliKullanici>('kullanicilar');
-      const bulunan = tumKullanicilar.find((k) => telefonStandartCekirdek(k.telefon || '') === standartTelefon);
-      if (bulunan) {
-        const kayitliSifre = bulunan.sifre?.trim();
-        if (!kayitliSifre || kayitliSifre !== girilenSifre) {
-          return null;
-        }
-        return bulunan;
-      }
-      return null;
-    } catch (hata) {
-      console.warn('Firebase kullanıcı giriş okuma hatası:', hata);
+  for (const belgeId of adayBelgeIdleri) {
+    const kayit = await belgeGetir<GuvenlikliKullanici>('kullanicilar', belgeId);
+    if (kayit) {
+      return { belgeId, kullanici: kayit };
     }
   }
 
-  return testKullaniciDogrula(standartTelefon, girilenSifre);
+  // 2. Bileşik ID ile bulunamazsa yalnızca sube_muduru / sube_admin rollerini sorgula
+  // (musteri, super_admin, yonetici, kurye, mutfak hesapları kesinlikle okunmaz)
+  try {
+    const rolSorgusu = query(
+      collection(firebaseVeritabani, 'kullanicilar'),
+      where('rol', 'in', ['sube_muduru', 'sube_admin'])
+    );
+    const snap = await getDocs(rolSorgusu);
+    for (const d of snap.docs) {
+      const veri = d.data() as GuvenlikliKullanici;
+      if (telefonStandartCekirdek(veri.telefon || '') === cekirdek10) {
+        return {
+          belgeId: d.id,
+          kullanici: { ...veri, id: d.id },
+        };
+      }
+    }
+  } catch (sorguHatasi) {
+    console.warn('Şube müdürü rol sorgusu uyarısı:', sorguHatasi);
+  }
+
+  return null;
+}
+
+export interface GirisDogrulamaSonucu {
+  kullanici: Kullanici | null;
+  hata?: string;
+}
+
+export async function veritabanindanKullaniciGirisYaptir(
+  telefon: string,
+  sifre: string
+): Promise<GirisDogrulamaSonucu> {
+  const dogrulama = telefonGecerliMi(telefon);
+  if (!dogrulama.gecerli) {
+    return { kullanici: null, hata: dogrulama.hata || 'Geçersiz telefon numarası.' };
+  }
+
+  const girilenSifre = sifre.trim();
+  if (!girilenSifre) {
+    return { kullanici: null, hata: 'Lütfen şifrenizi giriniz.' };
+  }
+
+  if (!canliFirebaseAktifMi()) {
+    return { kullanici: null, hata: 'Veritabanı bağlantısı aktif değil.' };
+  }
+
+  try {
+    const kayit = await sadeceSubeMuduruBelgesiGetir(telefon);
+    if (!kayit) {
+      return { kullanici: null, hata: 'Telefon numarası veya şifre hatalı.' };
+    }
+
+    const { belgeId, kullanici: bulunan } = kayit;
+
+    // Rol izolasyonu: yalnızca sube_muduru (veya uyumlu sube_admin) kabul edilir
+    if (!subeMuduruRoluGecerliMi(bulunan.rol)) {
+      return { kullanici: null, hata: YETKISIZ_GIRIS_MESAJI };
+    }
+
+    // Birebir şifre doğrulaması (sayısal/metin saklama farkını normalize et, bypass yok)
+    const hamSifre = bulunan.sifre ?? bulunan.parola ?? '';
+    const kayitliSifre = String(hamSifre).trim();
+    if (!kayitliSifre || kayitliSifre !== girilenSifre) {
+      return { kullanici: null, hata: 'Telefon numarası veya şifre hatalı.' };
+    }
+
+    // Şube müdürü mutlaka atanmış bir şubeye sahip olmalıdır
+    if (!bulunan.sube_id || !String(bulunan.sube_id).trim()) {
+      return { kullanici: null, hata: YETKISIZ_GIRIS_MESAJI };
+    }
+
+    // Hassas alanları oturum nesnesinden ayıkla
+    const { sifre: _sifre, parola: _parola, guvenlik_cevabi: _cevap, ...oturumKullanicisi } = bulunan;
+    return {
+      kullanici: {
+        ...oturumKullanicisi,
+        id: belgeId,
+        kimlik: bulunan.kimlik || belgeId,
+      },
+    };
+  } catch (hata) {
+    console.warn('Firebase kullanıcı giriş okuma hatası:', hata);
+    return { kullanici: null, hata: 'Bağlantı veya yetki doğrulaması sırasında bir sorun oluştu.' };
+  }
 }
 
 export async function kullaniciGuvenlikSorusuGetir(
   telefon: string
 ): Promise<{ kimlik: string; soru: string } | null> {
   const dogrulama = telefonGecerliMi(telefon);
-  if (!dogrulama.gecerli) return null;
+  if (!dogrulama.gecerli || !canliFirebaseAktifMi()) return null;
 
-  const standartTelefon = telefonStandartCekirdek(telefon);
-  if (canliFirebaseAktifMi()) {
-    try {
-      const tumKullanicilar = await koleksiyonGetir<GuvenlikliKullanici>('kullanicilar');
-      const bulunan = tumKullanicilar.find((k) => telefonStandartCekirdek(k.telefon || '') === standartTelefon);
-      if (bulunan && bulunan.guvenlik_sorusu?.trim()) {
-        return {
-          kimlik: bulunan.kimlik || bulunan.id || `tel_${standartTelefon}`,
-          soru: bulunan.guvenlik_sorusu.trim(),
-        };
-      }
-    } catch (hata) {
-      console.warn('Güvenlik sorusu getirme hatası:', hata);
+  try {
+    const kayit = await sadeceSubeMuduruBelgesiGetir(telefon);
+    if (!kayit) return null;
+    const { belgeId, kullanici: bulunan } = kayit;
+
+    if (!subeMuduruRoluGecerliMi(bulunan.rol)) {
+      return null;
     }
+
+    if (bulunan.guvenlik_sorusu?.trim()) {
+      return {
+        kimlik: belgeId,
+        soru: bulunan.guvenlik_sorusu.trim(),
+      };
+    }
+  } catch (hata) {
+    console.warn('Güvenlik sorusu getirme hatası:', hata);
   }
 
   return null;
@@ -91,28 +184,29 @@ export async function sifreSifirlaGuvenlikSorusuIle(
 ): Promise<boolean> {
   const dogrulama = telefonGecerliMi(telefon);
   if (!dogrulama.gecerli || !cevap.trim() || yeniSifre.trim().length < 4) return false;
+  if (!canliFirebaseAktifMi()) return false;
 
-  const standartTelefon = telefonStandartCekirdek(telefon);
   const girilenCevap = cevap.trim().toLowerCase();
   const yeniSifreTemiz = yeniSifre.trim();
 
-  if (canliFirebaseAktifMi()) {
-    try {
-      const tumKullanicilar = await koleksiyonGetir<GuvenlikliKullanici>('kullanicilar');
-      const bulunan = tumKullanicilar.find((k) => telefonStandartCekirdek(k.telefon || '') === standartTelefon);
-      if (bulunan && bulunan.guvenlik_cevabi?.trim()) {
-        if (bulunan.guvenlik_cevabi.trim().toLowerCase() === girilenCevap) {
-          const kimlikId = bulunan.id || bulunan.kimlik || `tel_${standartTelefon}`;
-          const kayitBasarili = await belgeKaydet('kullanicilar', kimlikId, {
-            ...bulunan,
-            sifre: yeniSifreTemiz,
-          });
-          return kayitBasarili;
-        }
-      }
-    } catch (hata) {
-      console.warn('Şifre sıfırlama hatası:', hata);
+  try {
+    const kayit = await sadeceSubeMuduruBelgesiGetir(telefon);
+    if (!kayit) return false;
+    const { belgeId, kullanici: bulunan } = kayit;
+
+    if (!subeMuduruRoluGecerliMi(bulunan.rol)) {
+      return false;
     }
+
+    if (bulunan.guvenlik_cevabi?.trim()) {
+      if (bulunan.guvenlik_cevabi.trim().toLowerCase() === girilenCevap) {
+        return await belgeKaydet('kullanicilar', belgeId, {
+          sifre: yeniSifreTemiz,
+        });
+      }
+    }
+  } catch (hata) {
+    console.warn('Şifre sıfırlama hatası:', hata);
   }
 
   return false;

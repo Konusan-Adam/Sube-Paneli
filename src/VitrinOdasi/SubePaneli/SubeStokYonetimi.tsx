@@ -14,6 +14,7 @@ export const SubeStokYonetimi: React.FC<Props> = ({ subeId, urunler, onStokGunce
   const [islemdeId, setIslemdeId] = useState<string | null>(null);
 
   const stokDegistir = async (urun: SubeUrunu, miktarDegisimi: number) => {
+    if (urun.sube_id !== subeId) return;
     const yeniStok = Math.max(0, urun.stok_adedi + miktarDegisimi);
     setIslemdeId(urun.id);
     try {

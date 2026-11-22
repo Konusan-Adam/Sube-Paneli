@@ -1,19 +1,23 @@
 import { SubeSiparisi } from '@/src/veritabani/SubeTipleri';
 import { canliFirebaseAktifMi } from '@/src/veritabani/FirebaseIstemcisi';
-import { belgeKaydet, koleksiyonGetir, koleksiyonuCanliDinle } from '@/src/veritabani/FirebaseKoleksiyonServisi';
+import {
+  belgeKaydet,
+  subeKoleksiyonuGetir,
+  subeKoleksiyonunuCanliDinle,
+} from '@/src/veritabani/FirebaseKoleksiyonServisi';
 
 export async function subeSiparisiOlustur(siparis: SubeSiparisi): Promise<boolean> {
+  if (!siparis.sube_id) return false;
   if (canliFirebaseAktifMi()) {
     return await belgeKaydet('sube_siparisleri', siparis.id, siparis);
   }
-  return true;
+  return false;
 }
 
-export async function subeSiparisleriGetir(subeId?: string): Promise<SubeSiparisi[]> {
-  if (!canliFirebaseAktifMi()) return [];
-  const tum = await koleksiyonGetir<SubeSiparisi>('sube_siparisleri');
-  if (!tum) return [];
-  return subeId ? tum.filter((s) => s.sube_id === subeId) : tum;
+export async function subeSiparisleriGetir(subeId: string): Promise<SubeSiparisi[]> {
+  if (!canliFirebaseAktifMi() || !subeId) return [];
+  const liste = await subeKoleksiyonuGetir<SubeSiparisi>('sube_siparisleri', subeId);
+  return (liste || []).filter((s) => s.sube_id === subeId);
 }
 
 export function subeSiparisleriniCanliDinle(
@@ -21,11 +25,16 @@ export function subeSiparisleriniCanliDinle(
   onGuncelle: (siparisler: SubeSiparisi[]) => void,
   onHata?: (hata: Error) => void
 ): () => void {
-  if (!canliFirebaseAktifMi()) return () => {};
-  return koleksiyonuCanliDinle<SubeSiparisi>('sube_siparisleri', (liste) => {
-    const filtrelenmis = (liste || []).filter((s) => s.sube_id === subeId);
-    onGuncelle(filtrelenmis);
-  }, onHata);
+  if (!canliFirebaseAktifMi() || !subeId) return () => {};
+  return subeKoleksiyonunuCanliDinle<SubeSiparisi>(
+    'sube_siparisleri',
+    subeId,
+    (liste) => {
+      const filtrelenmis = (liste || []).filter((s) => s.sube_id === subeId);
+      onGuncelle(filtrelenmis);
+    },
+    onHata
+  );
 }
 
 export async function subeSiparisiDurumGuncelle(
@@ -35,5 +44,5 @@ export async function subeSiparisiDurumGuncelle(
   if (canliFirebaseAktifMi()) {
     return await belgeKaydet('sube_siparisleri', siparisId, { durum: yeniDurum });
   }
-  return true;
+  return false;
 }

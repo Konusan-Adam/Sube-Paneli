@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Kullanici } from '@/src/veritabani/VeriTipleri';
-import { veritabanindanKullaniciGirisYaptir } from '@/src/MalzemeCekmeceleri/Kullanici/kullaniciGirisServisi';
+import {
+  subeMuduruRoluGecerliMi,
+  veritabanindanKullaniciGirisYaptir,
+  YETKISIZ_GIRIS_MESAJI,
+} from '@/src/MalzemeCekmeceleri/Kullanici/kullaniciGirisServisi';
 
 export type GirisYaniti = { basarili: boolean; hata?: string };
 
@@ -15,15 +19,23 @@ interface SubeKullaniciHafizaTipi {
 const OTURUM_ANAHTARI = 'afyon_sube_paneli_oturum';
 const KullaniciContext = createContext<SubeKullaniciHafizaTipi | undefined>(undefined);
 
+function gecerliSubeMuduruOturumuMu(k: Kullanici | null | undefined): k is Kullanici {
+  if (!k) return false;
+  if (!subeMuduruRoluGecerliMi(k.rol)) return false;
+  if (!k.sube_id || !String(k.sube_id).trim()) return false;
+  return true;
+}
+
 export const KullaniciSaglayici: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [aktifKullanici, setAktifKullanici] = useState<Kullanici | null>(() => {
     try {
       const kayit = localStorage.getItem(OTURUM_ANAHTARI);
       if (!kayit) return null;
       const parsed = JSON.parse(kayit) as Kullanici;
-      if (parsed?.rol === 'sube_admin' || parsed?.rol === 'yonetici') {
+      if (gecerliSubeMuduruOturumuMu(parsed)) {
         return parsed;
       }
+      localStorage.removeItem(OTURUM_ANAHTARI);
       return null;
     } catch {
       return null;
@@ -32,7 +44,7 @@ export const KullaniciSaglayici: React.FC<{ children: React.ReactNode }> = ({ ch
   const [yukleniyor, setYukleniyor] = useState<boolean>(false);
 
   useEffect(() => {
-    if (aktifKullanici) {
+    if (gecerliSubeMuduruOturumuMu(aktifKullanici)) {
       localStorage.setItem(OTURUM_ANAHTARI, JSON.stringify(aktifKullanici));
     } else {
       localStorage.removeItem(OTURUM_ANAHTARI);
@@ -42,17 +54,16 @@ export const KullaniciSaglayici: React.FC<{ children: React.ReactNode }> = ({ ch
   const girisYap = async (telefon: string, sifre: string): Promise<GirisYaniti> => {
     setYukleniyor(true);
     try {
-      const kullanici = await veritabanindanKullaniciGirisYaptir(telefon, sifre);
-      if (!kullanici) {
-        return { basarili: false, hata: 'Telefon numarası veya şifre hatalı.' };
+      const sonuc = await veritabanindanKullaniciGirisYaptir(telefon, sifre);
+      if (!sonuc.kullanici) {
+        return { basarili: false, hata: sonuc.hata || 'Telefon numarası veya şifre hatalı.' };
       }
-      if (kullanici.rol !== 'sube_admin' && kullanici.rol !== 'yonetici') {
-        return {
-          basarili: false,
-          hata: 'Bu panele yalnızca yetkili Şube Müdürleri ve Yöneticiler giriş yapabilir.',
-        };
+
+      if (!gecerliSubeMuduruOturumuMu(sonuc.kullanici)) {
+        return { basarili: false, hata: YETKISIZ_GIRIS_MESAJI };
       }
-      setAktifKullanici(kullanici);
+
+      setAktifKullanici(sonuc.kullanici);
       return { basarili: true };
     } catch {
       return { basarili: false, hata: 'Bağlantı sırasında bir sorun oluştu. Lütfen tekrar deneyin.' };

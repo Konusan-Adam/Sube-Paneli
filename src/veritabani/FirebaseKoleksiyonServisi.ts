@@ -1,12 +1,14 @@
-import { 
-  collection, 
-  getDocs, 
+import {
+  collection,
+  getDocs,
   getDoc,
-  doc, 
-  setDoc, 
+  doc,
+  setDoc,
   addDoc,
   deleteDoc,
-  onSnapshot
+  onSnapshot,
+  query,
+  where,
 } from 'firebase/firestore';
 import { firebaseVeritabani, canliFirebaseAktifMi } from './FirebaseIstemcisi';
 import { firestoreHatasiniYonet, IslemTipi } from './FirebaseHataYoneticisi';
@@ -45,6 +47,22 @@ export async function koleksiyonGetir<T>(koleksiyonAdi: string): Promise<T[]> {
   }
 }
 
+export async function subeKoleksiyonuGetir<T>(koleksiyonAdi: string, subeId: string): Promise<T[]> {
+  if (!subeId) return [];
+  try {
+    const kolRef = collection(firebaseVeritabani, koleksiyonAdi);
+    const q = query(kolRef, where('sube_id', '==', subeId));
+    const snap = await getDocs(q);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
+  } catch (hata) {
+    if (yetkiHatasiMi(hata)) {
+      firestoreHatasiniYonet(hata, IslemTipi.LIST, koleksiyonAdi);
+    }
+    console.warn(`Firebase ${koleksiyonAdi} (sube_id=${subeId}) okuma hatası:`, hata);
+    return [];
+  }
+}
+
 export function koleksiyonuCanliDinle<T>(
   koleksiyonAdi: string,
   geriCagirim: (veriler: T[]) => void,
@@ -53,7 +71,7 @@ export function koleksiyonuCanliDinle<T>(
   try {
     const kolRef = collection(firebaseVeritabani, koleksiyonAdi);
     return onSnapshot(
-      kolRef, 
+      kolRef,
       (snap) => {
         const veriler = snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
         geriCagirim(veriler);
@@ -75,6 +93,82 @@ export function koleksiyonuCanliDinle<T>(
     );
   } catch (hata) {
     console.warn(`Firebase ${koleksiyonAdi} başlatma hatası:`, hata);
+    return () => {};
+  }
+}
+
+export function subeKoleksiyonunuCanliDinle<T>(
+  koleksiyonAdi: string,
+  subeId: string,
+  geriCagirim: (veriler: T[]) => void,
+  hataCagirim?: (hata: Error) => void
+): () => void {
+  if (!subeId) return () => {};
+  try {
+    const kolRef = collection(firebaseVeritabani, koleksiyonAdi);
+    const q = query(kolRef, where('sube_id', '==', subeId));
+    return onSnapshot(
+      q,
+      (snap) => {
+        const veriler = snap.docs.map((d) => ({ id: d.id, ...d.data() } as T));
+        geriCagirim(veriler);
+      },
+      (hata) => {
+        if (yetkiHatasiMi(hata)) {
+          try {
+            firestoreHatasiniYonet(hata, IslemTipi.GET, koleksiyonAdi);
+          } catch (yapilandirilmisHata) {
+            if (hataCagirim && yapilandirilmisHata instanceof Error) {
+              hataCagirim(yapilandirilmisHata);
+              return;
+            }
+            throw yapilandirilmisHata;
+          }
+        }
+        console.warn(`Firebase ${koleksiyonAdi} (sube_id=${subeId}) canlı dinleme hatası:`, hata);
+      }
+    );
+  } catch (hata) {
+    console.warn(`Firebase ${koleksiyonAdi} başlatma hatası:`, hata);
+    return () => {};
+  }
+}
+
+export function belgeyiCanliDinle<T>(
+  koleksiyonAdi: string,
+  belgeId: string,
+  geriCagirim: (veri: T | null) => void,
+  hataCagirim?: (hata: Error) => void
+): () => void {
+  if (!belgeId) return () => {};
+  try {
+    const docRef = doc(firebaseVeritabani, koleksiyonAdi, belgeId);
+    return onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          geriCagirim({ id: docSnap.id, ...docSnap.data() } as T);
+        } else {
+          geriCagirim(null);
+        }
+      },
+      (hata) => {
+        if (yetkiHatasiMi(hata)) {
+          try {
+            firestoreHatasiniYonet(hata, IslemTipi.GET, `${koleksiyonAdi}/${belgeId}`);
+          } catch (yapilandirilmisHata) {
+            if (hataCagirim && yapilandirilmisHata instanceof Error) {
+              hataCagirim(yapilandirilmisHata);
+              return;
+            }
+            throw yapilandirilmisHata;
+          }
+        }
+        console.warn(`Firebase ${koleksiyonAdi}/${belgeId} canlı dinleme hatası:`, hata);
+      }
+    );
+  } catch (hata) {
+    console.warn(`Firebase ${koleksiyonAdi}/${belgeId} başlatma hatası:`, hata);
     return () => {};
   }
 }

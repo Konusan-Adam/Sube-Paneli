@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { LogOut, Package, ShoppingBag, TrendingUp } from 'lucide-react';
+import { LogOut, Package, ShoppingBag, TrendingUp, Store } from 'lucide-react';
 import { kullaniciHafizasiKullan } from '@/src/OrtakHavuz/KullaniciHafizasi';
+import { subeMuduruRoluGecerliMi } from '@/src/MalzemeCekmeceleri/Kullanici/kullaniciGirisServisi';
 import { gelAlSubeleriGetir } from '@/src/MalzemeCekmeceleri/gelAlSubeleriGetir';
 import { useSubeUrunleri } from '@/src/MalzemeCekmeceleri/Sube/useSubeUrunleri';
 import { subeSiparisleriniCanliDinle } from '@/src/MalzemeCekmeceleri/Sube/subeSiparisServisi';
@@ -15,25 +16,27 @@ import { subeSiparisZiliCal } from '@/src/MalzemeCekmeceleri/Sube/subeZilServisi
 
 export const SubeYoneticisiPaneli: React.FC = () => {
   const { aktifKullanici, cikisYap } = kullaniciHafizasiKullan();
+  const atananSubeId = aktifKullanici?.sube_id?.trim() || '';
   const rolYetkiliMi = Boolean(
-    aktifKullanici && (aktifKullanici.rol === 'sube_admin' || aktifKullanici.rol === 'yonetici')
+    aktifKullanici && subeMuduruRoluGecerliMi(aktifKullanici.rol) && atananSubeId
   );
 
-  const { subeler, subeGuncelle } = gelAlSubeleriGetir(rolYetkiliMi);
-  const { urunler } = useSubeUrunleri(undefined, rolYetkiliMi);
+  const { subeler, subeGuncelle } = gelAlSubeleriGetir(rolYetkiliMi, atananSubeId);
+  const { urunler } = useSubeUrunleri(atananSubeId, rolYetkiliMi);
   const [siparisler, setSiparisler] = useState<SubeSiparisi[]>([]);
   const [aktifSekme, setAktifSekme] = useState<'stoklar' | 'siparisler' | 'tedarik_kazanc'>('tedarik_kazanc');
-  const [seciliSubeId, setSeciliSubeId] = useState<string>('');
   const oncekiSayiRef = React.useRef<number | null>(null);
 
-  const varsayilanSubeId = aktifKullanici?.sube_id || 'sube-1';
-  const hedefSubeId = seciliSubeId || varsayilanSubeId;
-  const aktifSube = subeler.find((s) => s.id === hedefSubeId || s.kimlik === hedefSubeId) || subeler[0];
+  const aktifSube = subeler.find((s) => s.id === atananSubeId || s.kimlik === atananSubeId) || null;
+  const gosterilenSubeAdi = aktifSube?.ad || aktifKullanici?.isletme_adi || `Şube (${atananSubeId})`;
 
   useEffect(() => {
-    if (!rolYetkiliMi || !aktifSube?.id) return;
+    if (!rolYetkiliMi || !atananSubeId) {
+      setSiparisler([]);
+      return;
+    }
     const durdur = subeSiparisleriniCanliDinle(
-      aktifSube.id,
+      atananSubeId,
       (liste) => {
         if (oncekiSayiRef.current !== null && liste.length > oncekiSayiRef.current) {
           subeSiparisZiliCal();
@@ -46,12 +49,12 @@ export const SubeYoneticisiPaneli: React.FC = () => {
       }
     );
     return () => durdur();
-  }, [rolYetkiliMi, aktifSube?.id]);
+  }, [rolYetkiliMi, atananSubeId]);
 
   const canliYayinToggle = async () => {
-    if (!aktifSube || !aktifSube.id) return;
+    if (!aktifSube || !atananSubeId) return;
     const yeniDurum = !aktifSube.canli_yayin_aktif_mi;
-    await subeGuncelle(aktifSube.id, { canli_yayin_aktif_mi: yeniDurum });
+    await subeGuncelle(atananSubeId, { canli_yayin_aktif_mi: yeniDurum });
   };
 
   if (!rolYetkiliMi) {
@@ -67,29 +70,15 @@ export const SubeYoneticisiPaneli: React.FC = () => {
           </div>
           <div className="min-w-0">
             <h1 className="font-bold text-xs sm:text-sm text-white truncate">
-              {aktifSube?.ad || 'Şube Yönetim Paneli'}
+              {gosterilenSubeAdi}
             </h1>
             <p className="text-[10px] sm:text-xs text-[#A872B5] truncate">
-              Müdür: <strong className="text-white">{aktifKullanici?.ad_soyad}</strong>
+              Şube Müdürü: <strong className="text-white">{aktifKullanici?.ad_soyad}</strong>
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {aktifKullanici?.rol === 'yonetici' && subeler.length > 1 && (
-            <select
-              value={aktifSube?.id || ''}
-              onChange={(e) => setSeciliSubeId(e.target.value)}
-              aria-label="Şube Seç"
-              className="hidden md:block bg-[#180A1F] border border-[#521E5C] rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#DDAF53] cursor-pointer"
-            >
-              {subeler.map((s) => (
-                <option key={s.id || s.ad} value={s.id || ''}>
-                  {s.ad}
-                </option>
-              ))}
-            </select>
-          )}
           <SubeZilButonu />
           <button
             type="button"
@@ -104,16 +93,21 @@ export const SubeYoneticisiPaneli: React.FC = () => {
       </header>
 
       <main className="flex-1 p-3 sm:p-6 max-w-7xl mx-auto w-full space-y-4 sm:space-y-6">
-        {aktifSube && (
+        {aktifSube ? (
           <SubeBilgiKarti
             sube={aktifSube}
             onCanliYayinToggle={canliYayinToggle}
             onKapakGuncelle={async (yeniUrl) => {
-              if (aktifSube.id) {
-                await subeGuncelle(aktifSube.id, { gorsel: yeniUrl });
-              }
+              await subeGuncelle(atananSubeId, { gorsel: yeniUrl });
             }}
           />
+        ) : (
+          <div className="bg-[#220E29] border border-[#521E5C] rounded-2xl p-4 text-xs text-stone-300 flex items-center gap-2.5">
+            <Store className="w-4 h-4 text-[#DDAF53] shrink-0" />
+            <span>
+              Atanmış Şube: <strong className="text-white">{gosterilenSubeAdi}</strong>
+            </span>
+          </div>
         )}
 
         <div className="grid grid-cols-3 sm:flex items-center gap-1.5 sm:gap-2 p-1.5 bg-[#220E29] border border-[#521E5C] rounded-2xl w-full sm:w-fit">
@@ -159,22 +153,22 @@ export const SubeYoneticisiPaneli: React.FC = () => {
           </button>
         </div>
 
-        {aktifSekme === 'tedarik_kazanc' && aktifSube && (
+        {aktifSekme === 'tedarik_kazanc' && (
           <SubeTedarikVeKazanc
-            subeId={aktifSube.id || 'sube-1'}
-            subeAdi={aktifSube.ad}
+            subeId={atananSubeId}
+            subeAdi={gosterilenSubeAdi}
             urunler={urunler}
             siparisler={siparisler}
             onYenile={() => {}}
           />
         )}
 
-        {aktifSekme === 'stoklar' && aktifSube && (
-          <SubeStokYonetimi subeId={aktifSube.id || 'sube-1'} urunler={urunler} onStokGuncellendi={() => {}} />
+        {aktifSekme === 'stoklar' && (
+          <SubeStokYonetimi subeId={atananSubeId} urunler={urunler} onStokGuncellendi={() => {}} />
         )}
 
-        {aktifSekme === 'siparisler' && aktifSube && (
-          <SubeSiparisYonetimi subeId={aktifSube.id || 'sube-1'} />
+        {aktifSekme === 'siparisler' && (
+          <SubeSiparisYonetimi subeId={atananSubeId} />
         )}
       </main>
     </div>

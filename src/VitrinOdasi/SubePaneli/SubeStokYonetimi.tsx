@@ -65,9 +65,9 @@ export const SubeStokYonetimi: React.FC<Props> = ({ subeId, urunler, onStokGunce
                   <span className="text-[10px] text-[#A872B5] font-medium uppercase tracking-wider">{urun.kategori}</span>
                   <h4 className="font-bold text-sm text-white truncate">{urun.ad}</h4>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[#DDAF53] font-bold text-xs">{urun.fiyat} ₺</span>
+                    <span className="text-[#DDAF53] font-bold text-xs tabular-nums">{urun.fiyat} ₺</span>
                     {kritikStok && (
-                      <span className="text-[10px] text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1">
+                      <span className="text-[10px] text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/40 flex items-center gap-1 tabular-nums">
                         <AlertTriangle className="w-3 h-3" /> Son {urun.stok_adedi} Adet!
                       </span>
                     )}
@@ -77,22 +77,26 @@ export const SubeStokYonetimi: React.FC<Props> = ({ subeId, urunler, onStokGunce
 
               <div className="flex items-center justify-between pt-2 border-t border-[#2A102E]">
                 <div className="text-xs text-stone-300">
-                  Stok: <strong className="text-white text-sm">{urun.stok_adedi}</strong> adet
+                  Stok: <strong className="text-white text-sm tabular-nums">{urun.stok_adedi}</strong> adet
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2 lg:gap-1">
                   <button
+                    type="button"
                     disabled={islemdeId === urun.id || urun.stok_adedi <= 0}
                     onClick={() => stokDegistir(urun, -1)}
-                    className="w-8 h-8 rounded-lg bg-[#2A102E] hover:bg-[#4D1857] text-white flex items-center justify-center transition-colors cursor-pointer border border-[#521E5C] disabled:opacity-40"
+                    className="w-11 h-11 lg:w-8 lg:h-8 rounded-xl lg:rounded-lg bg-[#2A102E] hover:bg-[#4D1857] text-white flex items-center justify-center transition-colors cursor-pointer border border-[#521E5C] disabled:opacity-40"
+                    aria-label={`${urun.ad} stok azalt`}
                   >
-                    <Minus className="w-3.5 h-3.5" />
+                    <Minus className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
                   <button
+                    type="button"
                     disabled={islemdeId === urun.id}
                     onClick={() => stokDegistir(urun, 1)}
-                    className="w-8 h-8 rounded-lg bg-[#2A102E] hover:bg-[#4D1857] text-white flex items-center justify-center transition-colors cursor-pointer border border-[#521E5C] disabled:opacity-40"
+                    className="w-11 h-11 lg:w-8 lg:h-8 rounded-xl lg:rounded-lg bg-[#2A102E] hover:bg-[#4D1857] text-white flex items-center justify-center transition-colors cursor-pointer border border-[#521E5C] disabled:opacity-40"
+                    aria-label={`${urun.ad} stok artır`}
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
               </div>

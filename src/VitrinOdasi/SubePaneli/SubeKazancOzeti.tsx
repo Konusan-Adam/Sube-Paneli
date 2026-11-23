@@ -21,35 +21,35 @@ export const SubeKazancOzeti: React.FC<Props> = ({
           <span>Toplam Ciro</span>
           <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
         </div>
-        <div className="text-lg sm:text-xl font-bold text-white">{toplamCiro} ₺</div>
-        <div className="text-[9px] sm:text-[10px] text-emerald-400 font-medium truncate">{teslimatSayisi} Teslim Edilen</div>
+        <div className="text-lg sm:text-xl font-bold text-white tabular-nums">{toplamCiro} ₺</div>
+        <div className="text-[9px] sm:text-[10px] text-emerald-400 font-medium truncate tabular-nums">{teslimatSayisi} Teslim Edilen</div>
       </div>
 
-      <div className="bg-[#180A1F] border border-[#3E1646] rounded-xl p-3.5 space-y-1">
-        <div className="flex items-center justify-between text-stone-400 text-xs">
+      <div className="bg-[#180A1F] border border-[#3E1646] rounded-xl p-3 sm:p-3.5 space-y-1">
+        <div className="flex items-center justify-between text-stone-400 text-[11px] sm:text-xs">
           <span>Tedarikçi Payı</span>
-          <Users className="w-4 h-4 text-purple-400" />
+          <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-400" />
         </div>
-        <div className="text-xl font-bold text-purple-300">{tedarikciMaliyeti} ₺</div>
-        <div className="text-[10px] text-stone-400 font-medium">Ev mutfağı / üretici hakkı</div>
+        <div className="text-lg sm:text-xl font-bold text-purple-300 tabular-nums">{tedarikciMaliyeti} ₺</div>
+        <div className="text-[9px] sm:text-[10px] text-stone-400 font-medium truncate">Ev mutfağı / üretici hakkı</div>
       </div>
 
-      <div className="bg-[#180A1F] border border-amber-500/40 bg-amber-950/15 rounded-xl p-3.5 space-y-1">
-        <div className="flex items-center justify-between text-stone-400 text-xs">
+      <div className="bg-[#180A1F] border border-amber-500/40 bg-amber-950/15 rounded-xl p-3 sm:p-3.5 space-y-1">
+        <div className="flex items-center justify-between text-stone-400 text-[11px] sm:text-xs">
           <span className="text-[#DDAF53] font-bold">Şube Net Kârı</span>
-          <DollarSign className="w-4 h-4 text-[#DDAF53]" />
+          <DollarSign className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#DDAF53]" />
         </div>
-        <div className="text-xl font-bold text-[#DDAF53]">{netKar} ₺</div>
-        <div className="text-[10px] text-[#A872B5] font-medium">Tedarikçi maliyeti düşülmüş</div>
+        <div className="text-lg sm:text-xl font-bold text-[#DDAF53] tabular-nums">{netKar} ₺</div>
+        <div className="text-[9px] sm:text-[10px] text-[#A872B5] font-medium truncate">Tedarikçi maliyeti düşülmüş</div>
       </div>
 
-      <div className="bg-[#180A1F] border border-[#3E1646] rounded-xl p-3.5 space-y-1">
-        <div className="flex items-center justify-between text-stone-400 text-xs">
+      <div className="bg-[#180A1F] border border-[#3E1646] rounded-xl p-3 sm:p-3.5 space-y-1">
+        <div className="flex items-center justify-between text-stone-400 text-[11px] sm:text-xs">
           <span>Tamamlanan</span>
-          <CheckCircle2 className="w-4 h-4 text-sky-400" />
+          <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />
         </div>
-        <div className="text-xl font-bold text-sky-300">{teslimatSayisi} Adet</div>
-        <div className="text-[10px] text-stone-400 font-medium">Bugünkü Gel-Al teslimatı</div>
+        <div className="text-lg sm:text-xl font-bold text-sky-300 tabular-nums">{teslimatSayisi} Adet</div>
+        <div className="text-[9px] sm:text-[10px] text-stone-400 font-medium truncate">Bugünkü Gel-Al teslimatı</div>
       </div>
     </div>
   );

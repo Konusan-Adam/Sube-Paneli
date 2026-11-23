@@ -32,6 +32,9 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
   const durumGuncelle = async (siparisId: string, yeniDurum: SubeSiparisi['durum']) => {
     const hedefSiparis = siparisler.find((s) => s.id === siparisId && s.sube_id === subeId);
     if (!hedefSiparis) return;
+    if (yeniDurum === 'teslim_edildi' && hedefSiparis.teslimat_tipi === 'teslimat') {
+      return;
+    }
     await subeSiparisiDurumGuncelle(siparisId, yeniDurum);
   };
 
@@ -40,7 +43,25 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
     return s.durum === seciliDurum;
   });
 
-  const bekleyenSayisi = siparisler.filter((s) => s.durum === 'hazirlaniyor').length;
+  const hazirlaniyorSayisi = siparisler.filter((s) => s.durum === 'hazirlaniyor').length;
+  const teslimeHazirSayisi = siparisler.filter((s) => s.durum === 'teslime_hazir').length;
+  const teslimEdildiSayisi = siparisler.filter((s) => s.durum === 'teslim_edildi').length;
+
+  const durumSekmeleri = [
+    { id: 'tumu', etiket: 'Tümü', sayi: siparisler.length },
+    { id: 'hazirlaniyor', etiket: 'Hazırlanıyor', sayi: hazirlaniyorSayisi },
+    { id: 'teslime_hazir', etiket: 'Teslime Hazır', sayi: teslimeHazirSayisi },
+    { id: 'teslim_edildi', etiket: 'Teslim Edildi', sayi: teslimEdildiSayisi },
+  ];
+
+  const bosDurumMesaji =
+    seciliDurum === 'hazirlaniyor'
+      ? 'Hazırlanıyor aşamasında sipariş bulunmuyor.'
+      : seciliDurum === 'teslime_hazir'
+      ? 'Teslime hazır aşamasında sipariş bulunmuyor.'
+      : seciliDurum === 'teslim_edildi'
+      ? 'Teslim edilmiş sipariş bulunmuyor.'
+      : 'Bu şubeye ait aktif sipariş bulunmuyor.';
 
   return (
     <div className="bg-[#220E29] border border-[#521E5C] rounded-2xl p-3.5 sm:p-5 text-white shadow-xl space-y-4">
@@ -49,11 +70,13 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
           {yetkiHatasi}
         </div>
       )}
-      {bekleyenSayisi > 0 && (
-        <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl flex items-center justify-between text-amber-200 text-xs animate-pulse">
+      {hazirlaniyorSayisi > 0 && (
+        <div className="p-3 bg-amber-500/15 border border-amber-500/40 rounded-xl flex items-center justify-between text-amber-200 text-xs">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-            <span className="font-bold">Dikkat: {bekleyenSayisi} şube siparişi paketlenmeyi bekliyor!</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+            <span className="font-bold tabular-nums">
+              Dikkat: {hazirlaniyorSayisi} şube siparişi paketlenmeyi bekliyor!
+            </span>
           </div>
           <span className="text-[10px] text-amber-300 font-semibold hidden sm:inline">Tezgahı Kontrol Edin</span>
         </div>
@@ -65,30 +88,35 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
           <h3 className="font-bold text-sm sm:text-base text-white">Şube Canlı Sipariş Havuzu</h3>
         </div>
 
-        <div className="flex items-center gap-1 bg-[#180A1F] p-1 rounded-xl border border-[#3E1646] text-xs overflow-x-auto max-w-full">
-          {[
-            { id: 'tumu', etiket: 'Tümü' },
-            { id: 'hazirlaniyor', etiket: 'Hazırlanıyor' },
-            { id: 'teslime_hazir', etiket: 'Teslime Hazır' },
-            { id: 'teslim_edildi', etiket: 'Teslim Edildi' },
-          ].map((sekme) => (
+        <div className="grid grid-cols-4 sm:flex items-center gap-1 bg-[#180A1F] p-1 rounded-xl border border-[#3E1646] w-full sm:w-auto">
+          {durumSekmeleri.map((sekme) => (
             <button
               key={sekme.id}
+              type="button"
               onClick={() => setSeciliDurum(sekme.id)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg transition-colors cursor-pointer whitespace-nowrap text-xs ${
+              className={`min-h-[42px] sm:min-h-0 px-1.5 sm:px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 text-[10px] sm:text-xs leading-tight text-center ${
                 seciliDurum === sekme.id ? 'bg-[#6D237A] text-white font-bold' : 'text-[#A872B5] hover:text-white'
               }`}
             >
-              {sekme.etiket}
+              <span className="truncate max-w-full">{sekme.etiket}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
+                  seciliDurum === sekme.id
+                    ? 'bg-[#3E1646] text-[#DDAF53]'
+                    : 'bg-[#220E29] text-stone-300'
+                }`}
+              >
+                {sekme.sayi}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
       {filtrelenmisSiparisler.length === 0 ? (
-        <div className="py-10 text-center text-stone-400 bg-[#180A1F] rounded-xl border border-[#3E1646]">
-          <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-[#521E5C] mb-2" />
-          <p className="text-xs sm:text-sm font-medium">Bu şubeye ait aktif sipariş bulunmuyor.</p>
+        <div className="py-12 px-4 text-center text-stone-400 bg-[#180A1F] rounded-xl border border-[#3E1646]">
+          <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 mx-auto text-[#DDAF53]/60 mb-2" />
+          <p className="text-xs sm:text-sm font-medium">{bosDurumMesaji}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -97,9 +125,9 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
               key={siparis.id}
               className="bg-[#180A1F] border border-[#3E1646] rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
             >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#3E1646] text-[#DDAF53] font-bold text-xs px-2.5 py-0.5 rounded-md border border-[#521E5C]">
+              <div className="space-y-1.5 min-w-0 w-full">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="bg-[#3E1646] text-[#DDAF53] font-bold text-xs px-2.5 py-0.5 rounded-md border border-[#521E5C] tabular-nums">
                     #{siparis.siparis_kodu}
                   </span>
                   <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold ${
@@ -110,19 +138,23 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
                     {siparis.durum === 'hazirlaniyor' ? '🔥 Hazırlanıyor' :
                      siparis.durum === 'teslime_hazir' ? '📦 Teslime Hazır' : '✅ Teslim Edildi'}
                   </span>
-                  <span className="text-xs text-stone-400">PIN: <strong className="text-white">{siparis.pin_kodu}</strong></span>
+                  <span className="text-xs text-stone-400 tabular-nums">
+                    PIN: <strong className="text-white">{siparis.pin_kodu}</strong>
+                  </span>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
                     siparis.teslimat_tipi === 'teslimat'
                       ? 'bg-sky-500/20 text-sky-300 border-sky-500/40'
                       : 'bg-amber-500/15 text-amber-300 border-amber-500/40'
                   }`}>
-                    {siparis.teslimat_tipi === 'teslimat' ? '🛵 Adrese Teslim' : '🏬 Gel-Al'}
+                    {siparis.teslimat_tipi === 'teslimat'
+                      ? '🛵 Kurye Teslimatı (Paketle -> Kurye Bekliyor)'
+                      : '🏬 Gel-Al (Müşteri Şubeden Alacak)'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3 text-xs text-stone-300 pt-1">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-300 pt-0.5">
                   <span className="flex items-center gap-1"><User className="w-3.5 h-3.5 text-[#DDAF53]" /> {siparis.musteri_adi}</span>
-                  <span className="flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-emerald-400" /> {siparis.musteri_telefon}</span>
+                  <span className="flex items-center gap-1 tabular-nums"><Phone className="w-3.5 h-3.5 text-emerald-400" /> {siparis.musteri_telefon}</span>
                 </div>
 
                 {siparis.teslimat_tipi === 'teslimat' && siparis.teslimat_adresi_metni && (
@@ -134,7 +166,7 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
                 {siparis.urunler && siparis.urunler.length > 0 && (
                   <div className="text-xs text-stone-300 pt-1 flex flex-wrap gap-1">
                     {siparis.urunler.map((u, i) => (
-                      <span key={i} className="bg-[#2A102E] px-2 py-0.5 rounded border border-[#521E5C]">
+                      <span key={i} className="bg-[#2A102E] px-2 py-0.5 rounded border border-[#521E5C] tabular-nums">
                         {u.adet}x {u.ad}
                       </span>
                     ))}
@@ -142,10 +174,10 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-[#3E1646] pt-3 md:pt-0">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-[#3E1646] pt-3 md:pt-0 shrink-0">
                 <div className="flex items-center justify-between w-full sm:w-auto gap-4">
                   <span className="text-xs text-stone-400 sm:hidden">Toplam:</span>
-                  <div className="text-base font-bold text-[#DDAF53]">{siparis.toplam_tutar} ₺</div>
+                  <div className="text-base font-bold text-[#DDAF53] tabular-nums">{siparis.toplam_tutar} ₺</div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -153,22 +185,28 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
                     <button
                       type="button"
                       onClick={() => durumGuncelle(siparis.id, 'teslime_hazir')}
-                      className="w-full sm:w-auto px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
+                      className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
                     >
-                      <span>Paketlendi (Teslime Al)</span>
+                      <span>Paketlendi • Teslime Hazır</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   )}
-                  {siparis.durum === 'teslime_hazir' && (
-                    <button
-                      type="button"
-                      onClick={() => durumGuncelle(siparis.id, 'teslim_edildi')}
-                      className="w-full sm:w-auto px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Müşteriye Teslim Et</span>
-                    </button>
-                  )}
+                  {siparis.durum === 'teslime_hazir' &&
+                    (siparis.teslimat_tipi === 'teslimat' ? (
+                      <div className="w-full sm:w-auto min-h-[44px] px-3.5 py-2.5 bg-sky-950/60 border border-sky-500/40 text-sky-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                        <span>🛵 Kurye Teslim Alması Bekleniyor</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => durumGuncelle(siparis.id, 'teslim_edildi')}
+                        className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-md"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Müşteriye Teslim Et</span>
+                      </button>
+                    ))}
                   {siparis.durum === 'teslim_edildi' && (
                     <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1 py-1">
                       <CheckCircle2 className="w-4 h-4" /> Teslim Edildi

@@ -53,7 +53,16 @@ export interface SubeSiparisi {
   teslimat_tipi?: 'gel_al' | 'teslimat';
   teslimat_adresi_metni?: string;
   adres_notu?: string;
-  durum: 'hazirlaniyor' | 'teslime_hazir' | 'teslim_edildi' | 'iptal';
+  durum:
+    | 'hazirlaniyor'
+    | 'teslime_hazir'
+    | 'yolda'
+    | 'kuryede'
+    | 'kurye_yolda'
+    | 'kurye_teslim_aldi'
+    | 'kuryeye_teslim_edildi'
+    | 'teslim_edildi'
+    | 'iptal';
   toplam_tutar: number;
   odeme_yontemi: string;
   odeme_durumu?: 'odendi' | 'bekliyor' | 'kapida';
@@ -61,6 +70,10 @@ export interface SubeSiparisi {
   pin_kodu: string;
   tahmini_hazirlanma_dakika?: number;
   olusturma_tarihi: string;
+  stok_iade_edildi_mi?: boolean;
+  kurye_id?: string;
+  kurye_adi?: string;
+  kurye_telefon?: string;
   urunler?: {
     urun_id: string;
     ad: string;

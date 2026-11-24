@@ -6,6 +6,7 @@ import {
   subeKoleksiyonunuCanliDinle,
 } from '@/src/veritabani/FirebaseKoleksiyonServisi';
 import { patronBildirimiEkle } from '@/src/MalzemeCekmeceleri/PatronBildirimServisi';
+import { hukukiOnayDamgalaVeKaydet } from '@/src/MalzemeCekmeceleri/Hukuki/hukukiDelilServisi';
 
 export async function tedarikciHakedisKaydet(hakedis: TedarikciHakedis): Promise<boolean> {
   if (!hakedis.sube_id) return false;
@@ -19,6 +20,12 @@ export async function tedarikciHakedisKaydet(hakedis: TedarikciHakedis): Promise
         hakedis.id,
         { subeId: hakedis.sube_id }
       );
+      void hukukiOnayDamgalaVeKaydet({
+        islemTuru: 'hakedis',
+        sozlesmeTuru: 'tedarikci_hakedis_mutabakati',
+        ilgiliKayitId: hakedis.id,
+        ekDetay: `Şube: ${hakedis.sube_adi} (${hakedis.sube_id}) | Tedarikçi: ${hakedis.tedarikci_adi} | Ürün: ${hakedis.urun_adi} (${hakedis.teslim_adedi} adet) | Tutar: ${hakedis.toplam_hakedis} ₺`,
+      });
     }
     return basarili;
   }

@@ -97,6 +97,24 @@ function sozlesmeMetniOlustur(girdi: HukukiDelilGirdisi): string {
   return 'Afyon Ev Lezzetleri tedarikçi ürün teslimatı ve hak ediş tutarı şube müdürü ile mutabakat altına alınmıştır.';
 }
 
+function zamanDamgasiUcNoktasiAl(): string {
+  const ozelTaban =
+    typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL
+      ? String(import.meta.env.VITE_API_BASE_URL).trim().replace(/\/+$/, '')
+      : '';
+  if (ozelTaban) {
+    return `${ozelTaban}/api/zaman-damgasi/damgala`;
+  }
+  if (typeof window !== 'undefined') {
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    const yerliUygulama = Boolean(cap?.isNativePlatform?.());
+    if (yerliUygulama || window.location.protocol === 'capacitor:' || window.location.protocol === 'file:') {
+      return 'https://ais-pre-n7odpzo4uwztdphrws42tc-546261314622.europe-west2.run.app/api/zaman-damgasi/damgala';
+    }
+  }
+  return '/api/zaman-damgasi/damgala';
+}
+
 export async function hukukiOnayDamgalaVeKaydet(
   girdi: HukukiDelilGirdisi
 ): Promise<{ basarili: boolean; belgeId?: string; damgaDurumu?: DamgaDurumu }> {
@@ -131,7 +149,7 @@ export async function hukukiOnayDamgalaVeKaydet(
     const controller = new AbortController();
     const zamanlayici = setTimeout(() => controller.abort(), 7500);
     try {
-      const yanit = await fetch('/api/zaman-damgasi/damgala', {
+      const yanit = await fetch(zamanDamgasiUcNoktasiAl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,4 +1,4 @@
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { SubeSiparisi } from '@/src/veritabani/SubeTipleri';
 import { canliFirebaseAktifMi, firebaseVeritabani } from '@/src/veritabani/FirebaseIstemcisi';
 import {
@@ -46,12 +46,94 @@ export function subeSiparisleriniCanliDinle(
   );
 }
 
+function durumMetinleriniBelirle(yeniDurum: SubeSiparisi['durum']): {
+  asama: string;
+  durumAciklamasi: string;
+} {
+  switch (yeniDurum) {
+    case 'hazirlaniyor':
+      return {
+        asama: 'ocakta',
+        durumAciklamasi: 'Şube siparişiniz alındı, tezgahta hazırlanıyor.',
+      };
+    case 'teslime_hazir':
+      return {
+        asama: 'hazir',
+        durumAciklamasi: 'Siparişiniz paketlendi, şubeden teslime hazır.',
+      };
+    case 'yolda':
+    case 'kuryede':
+    case 'kurye_yolda':
+    case 'kurye_teslim_aldi':
+    case 'kuryeye_teslim_edildi':
+      return {
+        asama: 'yolda',
+        durumAciklamasi: 'Siparişiniz kurye ile teslimat için yola çıktı.',
+      };
+    case 'teslim_edildi':
+      return {
+        asama: 'teslim_edildi',
+        durumAciklamasi: 'Şube siparişiniz teslim edildi. Afiyet olsun!',
+      };
+    case 'iptal':
+      return {
+        asama: 'iptal',
+        durumAciklamasi: 'Şube siparişiniz iptal edildi.',
+      };
+    default:
+      return {
+        asama: 'isleniyor',
+        durumAciklamasi: 'Sipariş durumu güncellendi.',
+      };
+  }
+}
+
+export async function anaSiparisDurumunuSenkronizeEt(
+  siparisId: string,
+  yeniDurum: SubeSiparisi['durum']
+): Promise<boolean> {
+  if (!canliFirebaseAktifMi() || !siparisId) return false;
+  try {
+    const anaSiparisRef = doc(firebaseVeritabani, 'siparisler', siparisId);
+    const anaSnap = await getDoc(anaSiparisRef);
+    if (!anaSnap.exists()) {
+      return false;
+    }
+
+    const { asama, durumAciklamasi } = durumMetinleriniBelirle(yeniDurum);
+    const simdikiZaman = new Date().toISOString();
+
+    const guncelleme: Record<string, any> = {
+      durum: yeniDurum,
+      asama,
+      durum_aciklamasi: durumAciklamasi,
+      guncellenme_tarihi: simdikiZaman,
+    };
+
+    if (yeniDurum === 'teslim_edildi') {
+      guncelleme.teslim_tarihi = simdikiZaman;
+    } else if (yeniDurum === 'iptal') {
+      guncelleme.iptal_tarihi = simdikiZaman;
+    }
+
+    await updateDoc(anaSiparisRef, guncelleme);
+    return true;
+  } catch (hata) {
+    console.warn('Ana sipariş koleksiyonu senkronizasyon uyarısı:', hata);
+    return false;
+  }
+}
+
 export async function subeSiparisiDurumGuncelle(
   siparisId: string,
   yeniDurum: SubeSiparisi['durum']
 ): Promise<boolean> {
   if (canliFirebaseAktifMi()) {
-    return await belgeKaydet('sube_siparisleri', siparisId, { durum: yeniDurum });
+    const basarili = await belgeKaydet('sube_siparisleri', siparisId, { durum: yeniDurum });
+    if (basarili) {
+      await anaSiparisDurumunuSenkronizeEt(siparisId, yeniDurum);
+    }
+    return basarili;
   }
   return false;
 }
@@ -83,6 +165,9 @@ export async function subeSiparisiIptalEtVeStokIadeEt(
       if (siparisData.durum === 'iptal') {
         throw new Error('Bu sipariş zaten iptal edilmiş.');
       }
+
+      const anaSiparisRef = doc(firebaseVeritabani, 'siparisler', siparisId);
+      const anaSiparisSnap = await tx.get(anaSiparisRef);
 
       const iadeEdilecekKalemler =
         !siparisData.stok_iade_edildi_mi && Array.isArray(siparisData.urunler)
@@ -120,6 +205,17 @@ export async function subeSiparisiIptalEtVeStokIadeEt(
         durum: 'iptal',
         stok_iade_edildi_mi: true,
       });
+
+      if (anaSiparisSnap.exists()) {
+        const simdikiZaman = new Date().toISOString();
+        tx.update(anaSiparisRef, {
+          durum: 'iptal',
+          asama: 'iptal',
+          durum_aciklamasi: 'Şube siparişiniz iptal edildi ve ürün stokları iade edildi.',
+          iptal_tarihi: simdikiZaman,
+          guncellenme_tarihi: simdikiZaman,
+        });
+      }
     });
 
     return { basarili: true };

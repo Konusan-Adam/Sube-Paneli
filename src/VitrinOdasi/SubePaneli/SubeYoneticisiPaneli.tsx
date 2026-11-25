@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { LogOut, Package, ShoppingBag, TrendingUp, Store, Power, Wallet, Bell, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  LogOut,
+  Package,
+  ShoppingBag,
+  TrendingUp,
+  Store,
+  Power,
+  Wallet,
+  Bell,
+  BellOff,
+  BellRing,
+  AlertCircle,
+} from 'lucide-react';
 import { kullaniciHafizasiKullan } from '@/src/OrtakHavuz/KullaniciHafizasi';
 import { subeMuduruRoluGecerliMi } from '@/src/MalzemeCekmeceleri/Kullanici/kullaniciGirisServisi';
 import { gelAlSubeleriGetir } from '@/src/MalzemeCekmeceleri/gelAlSubeleriGetir';
@@ -12,7 +24,11 @@ import { SubeSiparisYonetimi } from './SubeSiparisYonetimi';
 import { SubeTedarikVeKazanc } from './SubeTedarikVeKazanc';
 import { SubeZilButonu } from './SubeZilButonu';
 import { SubeGirisEkrani } from './SubeGirisEkrani';
-import { subeSiparisZiliCal } from '@/src/MalzemeCekmeceleri/Sube/subeZilServisi';
+import {
+  subeSireniniBaslat,
+  subeSireniniDurdur,
+  subeSirenDinle,
+} from '@/src/MalzemeCekmeceleri/Sube/subeZilServisi';
 
 type PanelSekmesi = 'siparisler' | 'stoklar' | 'tedarik_kazanc' | 'subem';
 
@@ -29,7 +45,10 @@ export const SubeYoneticisiPaneli: React.FC = () => {
   const [aktifSekme, setAktifSekme] = useState<PanelSekmesi>('siparisler');
   const [durumGuncelleniyor, setDurumGuncelleniyor] = useState(false);
   const [logoHatali, setLogoHatali] = useState(false);
-  const oncekiSayiRef = React.useRef<number | null>(null);
+  const [sirenCaliyor, setSirenCaliyor] = useState(false);
+  const [altMenuGorunur, setAltMenuGorunur] = useState(true);
+  const oncekiSayiRef = useRef<number | null>(null);
+  const sonKaydirmaYRef = useRef<number>(0);
 
   const aktifSube = subeler.find((s) => s.id === atananSubeId || s.kimlik === atananSubeId) || null;
   const gosterilenSubeAdi = aktifSube?.ad || aktifKullanici?.isletme_adi || `Şube (${atananSubeId})`;
@@ -43,15 +62,59 @@ export const SubeYoneticisiPaneli: React.FC = () => {
   }, [aktifSube?.gorsel]);
 
   useEffect(() => {
+    const durdurSiren = subeSirenDinle((caliyor) => {
+      setSirenCaliyor(caliyor);
+      if (caliyor) setAltMenuGorunur(true);
+    });
+    return () => durdurSiren();
+  }, []);
+
+  useEffect(() => {
+    setAltMenuGorunur(true);
+  }, [aktifSekme]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    sonKaydirmaYRef.current = Math.max(0, window.scrollY || 0);
+    let beklemede = false;
+
+    const kaydirmaYonet = () => {
+      if (beklemede) return;
+      beklemede = true;
+      window.requestAnimationFrame(() => {
+        const simdikiY = Math.max(0, window.scrollY || document.documentElement.scrollTop || 0);
+        const fark = simdikiY - sonKaydirmaYRef.current;
+
+        if (simdikiY <= 40) {
+          setAltMenuGorunur(true);
+          sonKaydirmaYRef.current = simdikiY;
+        } else if (fark > 14) {
+          setAltMenuGorunur(false);
+          sonKaydirmaYRef.current = simdikiY;
+        } else if (fark < -10) {
+          setAltMenuGorunur(true);
+          sonKaydirmaYRef.current = simdikiY;
+        }
+        beklemede = false;
+      });
+    };
+
+    window.addEventListener('scroll', kaydirmaYonet, { passive: true });
+    return () => window.removeEventListener('scroll', kaydirmaYonet);
+  }, []);
+
+  useEffect(() => {
     if (!rolYetkiliMi || !atananSubeId) {
       setSiparisler([]);
+      oncekiSayiRef.current = null;
+      subeSireniniDurdur();
       return;
     }
     const durdur = subeSiparisleriniCanliDinle(
       atananSubeId,
       (liste) => {
         if (oncekiSayiRef.current !== null && liste.length > oncekiSayiRef.current) {
-          subeSiparisZiliCal();
+          subeSireniniBaslat();
         }
         oncekiSayiRef.current = liste.length;
         setSiparisler(liste);
@@ -60,7 +123,11 @@ export const SubeYoneticisiPaneli: React.FC = () => {
         console.warn('Şube siparişleri canlı dinleme yetki uyarısı:', hata.message);
       }
     );
-    return () => durdur();
+    return () => {
+      durdur();
+      oncekiSayiRef.current = null;
+      subeSireniniDurdur();
+    };
   }, [rolYetkiliMi, atananSubeId]);
 
   const canliYayinToggle = async () => {
@@ -173,6 +240,34 @@ export const SubeYoneticisiPaneli: React.FC = () => {
       </header>
 
       <main className="flex-1 p-3.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto w-full space-y-4 lg:space-y-6">
+        {/* 🚨 Sürekli Çalan Siren Acil Uyarı & Susturma Bandı */}
+        {sirenCaliyor && (
+          <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-900 via-amber-900 to-rose-900 border-2 border-rose-500 text-white shadow-2xl animate-pulse flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-600 flex items-center justify-center shrink-0 shadow-lg shadow-rose-950">
+                <BellRing className="w-5 h-5 text-white animate-bounce" />
+              </div>
+              <div className="min-w-0 text-center sm:text-left">
+                <p className="font-black text-sm sm:text-base text-rose-200 flex items-center justify-center sm:justify-start gap-1.5">
+                  <span>🚨 YENİ SİPARİŞ GELDİ!</span>
+                </p>
+                <p className="text-xs text-rose-100/90 font-medium">
+                  Tezgah için yeni sipariş düştü. Siren susturulana kadar çalmaya devam eder.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => subeSireniniDurdur()}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-white text-rose-900 hover:bg-rose-100 text-xs sm:text-sm font-black shadow-xl transition-transform active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0"
+              title="Çalan Sireni Sustur"
+            >
+              <BellOff className="w-4 h-4 text-rose-700" />
+              <span>SİRENİ SUSTUR</span>
+            </button>
+          </div>
+        )}
+
         {!subeAcikMi && (
           <div className="lg:hidden px-3 py-2 rounded-xl bg-rose-950/80 border border-rose-500/60 text-rose-200 text-xs font-bold flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
@@ -333,28 +428,33 @@ export const SubeYoneticisiPaneli: React.FC = () => {
         </div>
       </main>
 
-      {/* Mobil & Tablet (APK) Sabit Alt Menü */}
+      {/* Mobil & Tablet (APK) Akıllı Alt Menü */}
       <nav
         aria-label="Şube mobil gezinme"
-        className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#220E29]/95 backdrop-blur-md border-t border-[#3E1646] px-2 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.45)]"
+        aria-hidden={!altMenuGorunur}
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-40 bg-[#220E29]/95 backdrop-blur-md border-t border-[#3E1646] px-2 pt-1.5 pb-[max(0.45rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out ${
+          altMenuGorunur ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+        }`}
       >
         <div className="grid grid-cols-4 gap-1 max-w-2xl mx-auto">
           <button
             type="button"
             onClick={() => setAktifSekme('siparisler')}
-            className={`relative min-h-[52px] px-1 py-1.5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+            className={`min-h-[52px] px-1 py-1.5 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
               aktifSekme === 'siparisler'
                 ? 'bg-[#6D237A] text-white shadow-md shadow-[#6D237A]/30'
                 : 'text-[#A872B5] hover:text-white'
             }`}
           >
-            <ShoppingBag className="w-5 h-5" />
+            <div className="relative inline-flex items-center justify-center">
+              <ShoppingBag className="w-5 h-5" />
+              {aktifSiparisSayisi > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#DDAF53] border border-[#180A1F]/50 text-[#180A1F] text-[10px] font-extrabold tabular-nums flex items-center justify-center shadow-sm">
+                  {aktifSiparisSayisi}
+                </span>
+              )}
+            </div>
             <span className="text-[11px] font-bold tracking-tight leading-none">Siparişler</span>
-            {aktifSiparisSayisi > 0 && (
-              <span className="absolute top-1 right-3 sm:right-6 min-w-[18px] h-[18px] px-1 rounded-full bg-[#7C2D8C] border border-[#DDAF53]/60 text-white text-[10px] font-bold tabular-nums flex items-center justify-center shadow">
-                {aktifSiparisSayisi}
-              </span>
-            )}
           </button>
 
           <button

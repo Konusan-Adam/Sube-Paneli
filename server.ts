@@ -16,7 +16,35 @@ async function sunucuyuBaslat() {
   app.set('trust proxy', 1);
   app.use(express.json({ limit: '64kb' }));
 
+  const izinliApkKokenleri = new Set([
+    'https://localhost',
+    'http://localhost',
+    'capacitor://localhost',
+  ]);
+  app.use('/api/zaman-damgasi', (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && izinliApkKokenleri.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    }
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
   app.use('/api/zaman-damgasi', zamanDamgasiRotasi);
+
+  app.get('/apk/afyon-sube-paneli.apk', (_req, res) => {
+    const apkYolu = path.resolve(__dirname, 'apk-cikti', 'afyon-sube-paneli.apk');
+    if (fs.existsSync(apkYolu)) {
+      res.download(apkYolu, 'afyon-sube-paneli.apk');
+    } else {
+      res.status(404).send('APK dosyası henüz üretilmedi.');
+    }
+  });
 
   if (!uretimModu) {
     const { createServer: createViteServer } = await import('vite');

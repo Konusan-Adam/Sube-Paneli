@@ -7,6 +7,7 @@ import {
   subeSiparisiIptalEtVeStokIadeEt,
 } from '@/src/MalzemeCekmeceleri/Sube/subeSiparisServisi';
 import { hukukiOnayDamgalaVeKaydet } from '@/src/MalzemeCekmeceleri/Hukuki/hukukiDelilServisi';
+import { subeSireniniDurdur } from '@/src/MalzemeCekmeceleri/Sube/subeZilServisi';
 
 interface Props {
   subeId: string;
@@ -49,17 +50,20 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
       const ok = await subeSiparisiDurumGuncelle(siparisId, yeniDurum);
       if (!ok) {
         setIslemHatasi('Sipariş durumu güncellenemedi. Lütfen tekrar deneyin.');
-      } else if (yeniDurum === 'teslim_edildi') {
-        void hukukiOnayDamgalaVeKaydet({
-          islemTuru: 'teslimat',
-          sozlesmeTuru: 'sube_teslimat_onayi',
-          ilgiliKayitId: hedefSiparis.siparis_kodu || hedefSiparis.id,
-          ekDetay: `Şube: ${hedefSiparis.sube_adi || subeId} | Sipariş: ${
-            hedefSiparis.siparis_kodu || hedefSiparis.id
-          } | Müşteri: ${hedefSiparis.musteri_adi} | Tip: ${
-            hedefSiparis.teslimat_tipi || 'gel_al'
-          } | Tutar: ${hedefSiparis.toplam_tutar} ₺`,
-        });
+      } else {
+        subeSireniniDurdur();
+        if (yeniDurum === 'teslim_edildi') {
+          void hukukiOnayDamgalaVeKaydet({
+            islemTuru: 'teslimat',
+            sozlesmeTuru: 'sube_teslimat_onayi',
+            ilgiliKayitId: hedefSiparis.siparis_kodu || hedefSiparis.id,
+            ekDetay: `Şube: ${hedefSiparis.sube_adi || subeId} | Sipariş: ${
+              hedefSiparis.siparis_kodu || hedefSiparis.id
+            } | Müşteri: ${hedefSiparis.musteri_adi} | Tip: ${
+              hedefSiparis.teslimat_tipi || 'gel_al'
+            } | Tutar: ${hedefSiparis.toplam_tutar} ₺`,
+          });
+        }
       }
     } catch {
       setIslemHatasi('Sipariş durumu güncellenirken yetki veya bağlantı hatası oluştu.');
@@ -78,6 +82,7 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
       if (!sonuc.basarili) {
         setIslemHatasi(sonuc.hata || 'Sipariş iptal edilemedi.');
       } else {
+        subeSireniniDurdur();
         setIptalOnayId(null);
         void hukukiOnayDamgalaVeKaydet({
           islemTuru: 'iptal',
@@ -162,10 +167,12 @@ export const SubeSiparisYonetimi: React.FC<Props> = ({ subeId }) => {
             >
               <span className="truncate max-w-full">{sekme.etiket}</span>
               <span
-                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
-                  seciliDurum === sekme.id
-                    ? 'bg-[#3E1646] text-[#DDAF53]'
-                    : 'bg-[#220E29] text-stone-300'
+                className={`min-w-[20px] h-[20px] px-1.5 rounded-full text-[11px] font-extrabold tabular-nums inline-flex items-center justify-center ${
+                  sekme.sayi > 0
+                    ? 'bg-[#DDAF53] text-[#180A1F] shadow-sm'
+                    : seciliDurum === sekme.id
+                    ? 'bg-[#3E1646] text-stone-300'
+                    : 'bg-[#2A1333] text-stone-400'
                 }`}
               >
                 {sekme.sayi}

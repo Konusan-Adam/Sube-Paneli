@@ -24,6 +24,7 @@ import { SubeSiparisYonetimi } from './SubeSiparisYonetimi';
 import { SubeTedarikVeKazanc } from './SubeTedarikVeKazanc';
 import { SubeZilButonu } from './SubeZilButonu';
 import { SubeGirisEkrani } from './SubeGirisEkrani';
+import { ApkGuncellemeUyarisi } from '@/src/VitrinOdasi/Ortak/ApkGuncellemeUyarisi';
 import {
   subeSireniniBaslat,
   subeSireniniDurdur,
@@ -240,6 +241,7 @@ export const SubeYoneticisiPaneli: React.FC = () => {
       </header>
 
       <main className="flex-1 p-3.5 sm:p-5 lg:p-6 pb-24 lg:pb-6 max-w-7xl mx-auto w-full space-y-4 lg:space-y-6">
+        <ApkGuncellemeUyarisi />
         {/* 🚨 Sürekli Çalan Siren Acil Uyarı & Susturma Bandı */}
         {sirenCaliyor && (
           <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-r from-rose-900 via-amber-900 to-rose-900 border-2 border-rose-500 text-white shadow-2xl animate-pulse flex flex-col sm:flex-row items-center justify-between gap-3">

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AfyonTema" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowBackground">@color/ana_arka_plan</item>
+        <item name="android:statusBarColor">@color/ana_arka_plan</item>
+        <item name="android:navigationBarColor">@color/ana_arka_plan</item>
+    </style>
+</resources>

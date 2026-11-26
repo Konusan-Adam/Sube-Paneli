@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="uygulama_adi">Afyon Şube</string>
+    <string name="servis_baslik">Afyon Şube Arka Plan Dinleyicisi</string>
+    <string name="servis_detay">Yeni şube siparişleri ve iptaller kesintisiz takip ediliyor.</string>
+</resources>

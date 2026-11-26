@@ -6,8 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
-apk-cikti/
-android/.gradle/
-android/app/build/
-android/build/
+android/gecici/
+android/app/src/main/assets/www/
+android/sablon/
+android/cikti/*.idsig
+
 

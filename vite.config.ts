@@ -25,6 +25,13 @@ export default defineConfig(() => {
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
           }
+          if (fs.existsSync(distDir)) {
+            for (const entry of fs.readdirSync(distDir)) {
+              if (entry.endsWith('.apk') || entry.endsWith('.idsig')) {
+                fs.rmSync(path.join(distDir, entry), {force: true});
+              }
+            }
+          }
         },
       },
     ],

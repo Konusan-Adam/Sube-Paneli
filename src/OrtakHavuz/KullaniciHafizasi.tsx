@@ -5,6 +5,12 @@ import {
   veritabanindanKullaniciGirisYaptir,
   YETKISIZ_GIRIS_MESAJI,
 } from '@/src/MalzemeCekmeceleri/Kullanici/kullaniciGirisServisi';
+import { auth } from '@/src/veritabani/FirebaseIstemcisi';
+import {
+  androidOturumBildir,
+  androidOturumKapatBildir,
+  androidZilAyariniSenkronizeEt,
+} from '@/src/MalzemeCekmeceleri/Mobil/AndroidKopruServisi';
 
 export type GirisYaniti = { basarili: boolean; hata?: string };
 
@@ -44,11 +50,31 @@ export const KullaniciSaglayici: React.FC<{ children: React.ReactNode }> = ({ ch
   const [yukleniyor, setYukleniyor] = useState<boolean>(false);
 
   useEffect(() => {
+    let iptal = false;
     if (gecerliSubeMuduruOturumuMu(aktifKullanici)) {
       localStorage.setItem(OTURUM_ANAHTARI, JSON.stringify(aktifKullanici));
+      const belirteciAlVeBildir = async () => {
+        let belirtec = '';
+        try {
+          if (auth.currentUser) {
+            belirtec = await auth.currentUser.getIdToken();
+          }
+        } catch {
+          belirtec = '';
+        }
+        if (!iptal) {
+          androidOturumBildir(aktifKullanici, belirtec);
+          androidZilAyariniSenkronizeEt();
+        }
+      };
+      void belirteciAlVeBildir();
     } else {
       localStorage.removeItem(OTURUM_ANAHTARI);
+      androidOturumKapatBildir();
     }
+    return () => {
+      iptal = true;
+    };
   }, [aktifKullanici]);
 
   const girisYap = async (telefon: string, sifre: string): Promise<GirisYaniti> => {
@@ -75,6 +101,7 @@ export const KullaniciSaglayici: React.FC<{ children: React.ReactNode }> = ({ ch
   const cikisYap = () => {
     setAktifKullanici(null);
     localStorage.removeItem(OTURUM_ANAHTARI);
+    androidOturumKapatBildir();
   };
 
   const panelDegistir = (_panel: string) => {};

@@ -106,9 +106,10 @@ function zamanDamgasiUcNoktasiAl(): string {
     return `${ozelTaban}/api/zaman-damgasi/damgala`;
   }
   if (typeof window !== 'undefined') {
-    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
-    const yerliUygulama = Boolean(cap?.isNativePlatform?.());
-    if (yerliUygulama || window.location.protocol === 'capacitor:' || window.location.protocol === 'file:') {
+    const kopru = (window as unknown as { AfyonAndroidKopru?: unknown }).AfyonAndroidKopru;
+    const yerliUygulama =
+      Boolean(kopru) || window.location.hostname === 'appassets.androidplatform.net';
+    if (yerliUygulama) {
       return 'https://ais-pre-n7odpzo4uwztdphrws42tc-546261314622.europe-west2.run.app/api/zaman-damgasi/damgala';
     }
   }

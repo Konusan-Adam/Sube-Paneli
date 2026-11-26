@@ -17,9 +17,9 @@ async function sunucuyuBaslat() {
   app.use(express.json({ limit: '64kb' }));
 
   const izinliApkKokenleri = new Set([
+    'https://appassets.androidplatform.net',
     'https://localhost',
     'http://localhost',
-    'capacitor://localhost',
   ]);
   app.use('/api/zaman-damgasi', (req, res, next) => {
     const origin = req.headers.origin;
@@ -37,12 +37,47 @@ async function sunucuyuBaslat() {
 
   app.use('/api/zaman-damgasi', zamanDamgasiRotasi);
 
-  app.get('/apk/afyon-sube-paneli.apk', (_req, res) => {
-    const apkYolu = path.resolve(__dirname, 'apk-cikti', 'afyon-sube-paneli.apk');
-    if (fs.existsSync(apkYolu)) {
-      res.download(apkYolu, 'afyon-sube-paneli.apk');
+  const ciktiDizini = path.resolve(__dirname, 'android', 'cikti');
+  app.use('/apk', (req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && izinliApkKokenleri.has(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    }
+    if (req.method === 'OPTIONS') {
+      res.status(204).end();
+      return;
+    }
+    next();
+  });
+
+  app.get('/apk/apk-meta.json', (_req, res) => {
+    const metaYolu = path.resolve(ciktiDizini, 'apk-meta.json');
+    if (!metaYolu.startsWith(ciktiDizini + path.sep)) {
+      res.status(403).end();
+      return;
+    }
+    if (fs.existsSync(metaYolu)) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.sendFile(metaYolu);
     } else {
-      res.status(404).send('APK dosyası henüz üretilmedi.');
+      res.status(404).json({ hata: 'APK üstverisi henüz oluşturulmadı.' });
+    }
+  });
+
+  app.get('/apk/afyon-sube.apk', (_req, res) => {
+    const apkYolu = path.resolve(ciktiDizini, 'afyon-sube.apk');
+    if (!apkYolu.startsWith(ciktiDizini + path.sep)) {
+      res.status(403).end();
+      return;
+    }
+    if (fs.existsSync(apkYolu)) {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+      res.download(apkYolu, 'afyon-sube.apk');
+    } else {
+      res.status(404).send('APK dosyası henüz üretilmedi. Lütfen npm run build:apk çalıştırın.');
     }
   });
 

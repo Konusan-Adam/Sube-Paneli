@@ -1,0 +1,13 @@
+{
+  "uygulamaKimlik": "com.afyonevlezzetleri.sube",
+  "uygulamaAdi": "Afyon Şube",
+  "dosyaAdi": "afyon-sube.apk",
+  "surumKodu": 1,
+  "surumAdi": "1.0.0",
+  "boyutBayt": 2563448,
+  "boyutMb": 2.44,
+  "sha256": "c95c9868bda3ed8024e5f2d2d0d387a9e86bab70767d3fecd07f969d4bc59f79",
+  "uretimZamani": "2026-11-26T18:40:13.738Z",
+  "yontem": "tam_native",
+  "indirmeYolu": "/apk/afyon-sube.apk"
+}

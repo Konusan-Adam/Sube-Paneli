@@ -160,7 +160,9 @@ export function useApkGuncelleme() {
         setOtaMesaj('Kurulum penceresi açıldı.');
       } else if (detay.durum === 'hata') {
         setOtaDurum('hata');
-        setOtaMesaj(detay.mesaj || 'Güncelleme indirilemedi.');
+        const ham = typeof detay.mesaj === 'string' ? detay.mesaj.trim() : '';
+        const turkceMi = /[çğıöşüÇĞİÖŞÜ]/.test(ham) || ham.startsWith('Sunucu HTTP');
+        setOtaMesaj(turkceMi ? ham : 'Güncelleme indirilemedi. Lütfen bağlantınızı kontrol edin.');
       }
     };
     window.addEventListener('afyon-ota-durum', dinle);

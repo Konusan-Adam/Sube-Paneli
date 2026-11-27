@@ -421,13 +421,19 @@ function tamNativeDerle(sdk) {
 
 function sablonUzerindenDerle() {
   console.log('2/4 Android SDK bulunamadı; mevcut şablon APK güncellenip imzalanıyor...');
-  if (!fs.existsSync(SABLON_APK_YOLU)) {
+  let kaynakSablonYolu = SABLON_APK_YOLU;
+  if (!fs.existsSync(kaynakSablonYolu) && fs.existsSync(CIKTI_APK_YOLU)) {
+    fs.mkdirSync(SABLON_KLASORU, { recursive: true });
+    fs.copyFileSync(CIKTI_APK_YOLU, SABLON_APK_YOLU);
+    kaynakSablonYolu = SABLON_APK_YOLU;
+  }
+  if (!fs.existsSync(kaynakSablonYolu)) {
     throw new Error('Şablon APK bulunamadı: android/sablon/temel-sablon.apk');
   }
   klasorTemizleVeOlustur(GECICI_KLASORU);
   fs.mkdirSync(CIKTI_KLASORU, { recursive: true });
 
-  const mevcutGirdiler = zipGirdileriniOku(fs.readFileSync(SABLON_APK_YOLU)).filter(
+  const mevcutGirdiler = zipGirdileriniOku(fs.readFileSync(kaynakSablonYolu)).filter(
     (g) => !g.ad.startsWith('assets/www/') && !g.ad.startsWith('META-INF/')
   );
 
@@ -448,6 +454,7 @@ function sablonUzerindenDerle() {
   fs.writeFileSync(guncelHamApk, zipArsiviOlustur(mevcutGirdiler).tampon);
 
   const pemYolu = path.join(GECICI_KLASORU, 'anahtar.pem');
+  const certPemYolu = path.join(GECICI_KLASORU, 'sertifika.pem');
   const certDerYolu = path.join(GECICI_KLASORU, 'sertifika.der');
   execFileSync(
     'openssl',
@@ -465,18 +472,23 @@ function sablonUzerindenDerle() {
     { stdio: 'pipe' }
   );
   execFileSync(
-    KEYTOOL_YOLU,
+    'openssl',
     [
-      '-exportcert',
-      '-keystore',
+      'pkcs12',
+      '-in',
       ANAHTAR_DEPOSU_YOLU,
-      '-alias',
-      ANAHTAR_TAKMA_ADI,
-      '-storepass',
-      DEPO_SIFRESI,
-      '-file',
-      certDerYolu,
+      '-clcerts',
+      '-nokeys',
+      '-out',
+      certPemYolu,
+      '-passin',
+      `pass:${DEPO_SIFRESI}`,
     ],
+    { stdio: 'pipe' }
+  );
+  execFileSync(
+    'openssl',
+    ['x509', '-in', certPemYolu, '-outform', 'der', '-out', certDerYolu],
     { stdio: 'pipe' }
   );
 

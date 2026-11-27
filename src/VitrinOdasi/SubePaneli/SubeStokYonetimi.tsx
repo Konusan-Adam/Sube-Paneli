@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Package, Plus, Minus, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Package, Plus, Minus, AlertTriangle } from 'lucide-react';
 import { SubeUrunu } from '@/src/veritabani/SubeTipleri';
 import { belgeKaydet } from '@/src/veritabani/FirebaseKoleksiyonServisi';
 import { canliFirebaseAktifMi } from '@/src/veritabani/FirebaseIstemcisi';
+import { firebaseHatasiniTurkcelestir } from '@/src/veritabani/firebaseHataMesaji';
 
 interface Props {
   subeId: string;
@@ -12,18 +13,25 @@ interface Props {
 
 export const SubeStokYonetimi: React.FC<Props> = ({ subeId, urunler, onStokGuncellendi }) => {
   const [islemdeId, setIslemdeId] = useState<string | null>(null);
+  const [stokHatasi, setStokHatasi] = useState<string>('');
 
   const stokDegistir = async (urun: SubeUrunu, miktarDegisimi: number) => {
     if (urun.sube_id !== subeId) return;
     const yeniStok = Math.max(0, urun.stok_adedi + miktarDegisimi);
+    setStokHatasi('');
     setIslemdeId(urun.id);
     try {
       if (canliFirebaseAktifMi()) {
-        await belgeKaydet('sube_stoklari', urun.id, { stok_adedi: yeniStok });
+        const ok = await belgeKaydet('sube_stoklari', urun.id, { stok_adedi: yeniStok });
+        if (!ok) {
+          setStokHatasi('Stok güncellenemedi. Veritabanı yazma yetkisini kontrol edin.');
+          return;
+        }
       }
       onStokGuncellendi();
     } catch (err) {
       console.warn('Stok güncellenemedi:', err);
+      setStokHatasi(firebaseHatasiniTurkcelestir(err, 'Stok güncellenemedi.'));
     } finally {
       setIslemdeId(null);
     }
@@ -42,6 +50,12 @@ export const SubeStokYonetimi: React.FC<Props> = ({ subeId, urunler, onStokGunce
           {subeUrunleri.length} Ürün
         </span>
       </div>
+
+      {stokHatasi && (
+        <div className="p-3 rounded-xl bg-rose-950/70 border border-rose-500/60 text-rose-200 text-xs font-medium">
+          {stokHatasi}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {subeUrunleri.map((urun) => {

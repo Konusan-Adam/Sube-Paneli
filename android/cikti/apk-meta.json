@@ -4,10 +4,10 @@
   "dosyaAdi": "afyon-sube.apk",
   "surumKodu": 1,
   "surumAdi": "1.0.0",
-  "boyutBayt": 2563448,
-  "boyutMb": 2.44,
-  "sha256": "c95c9868bda3ed8024e5f2d2d0d387a9e86bab70767d3fecd07f969d4bc59f79",
-  "uretimZamani": "2026-11-26T18:40:13.738Z",
-  "yontem": "tam_native",
+  "boyutBayt": 2567629,
+  "boyutMb": 2.45,
+  "sha256": "683324b4a23c76806e2a5bbcff1cd21359b96174dd1f00a4f63648a99daab51b",
+  "uretimZamani": "2026-11-27T18:26:19.634Z",
+  "yontem": "sablon_imzali",
   "indirmeYolu": "/apk/afyon-sube.apk"
 }

@@ -394,9 +394,10 @@ export function apkImzalaNode(girdiApkYolu, ciktiApkYolu, ozelAnahtarPem, sertif
   const bolum4Tam = Buffer.from(arsiv.tampon.subarray(arsiv.eocdKonum));
 
   const ozet = apkBolumOzetleriniHesapla(bolum1, bolum3, bolum4Tam);
-  const acikAnahtarDer = crypto
-    .createPublicKey(new crypto.X509Certificate(sertifikaDer).publicKey)
-    .export({ type: 'spki', format: 'der' });
+  const acikAnahtarDer = new crypto.X509Certificate(sertifikaDer).publicKey.export({
+    type: 'spki',
+    format: 'der',
+  });
 
   const algTampon = Buffer.alloc(4);
   algTampon.writeUInt32LE(IMZA_ALGORITMA_RSA_PKCS1_SHA256, 0);
